@@ -1,9 +1,9 @@
 # Configurações do Sistema Alvo
 target:
   name: "Gestão de Projetos Sefaz"
-  base_url: "https://app02.makernocode.dev"
+  base_url: "https://app3.makernocode.dev/"
   web_endpoints:
-    - "/open.do?sys=NG4"
+    - "/open.do?sys=FPG"
 
 # Configurações de Testes de Performance
 performance:

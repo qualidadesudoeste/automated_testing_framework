@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Framework de Testes Automatizados de Performance e Segurança
 
 Um framework completo e modular para realizar testes automatizados de performance e segurança em qualquer sistema web, API ou aplicação.
@@ -617,3 +618,7 @@ Funcionalidades planejadas:
 ---
 
 **Desenvolvido com ❤️ para ajudar a construir sistemas mais seguros e performáticos**
+=======
+# automated_testing_framework
+Framework de testes de performance e segurança
+>>>>>>> b09215b4073266a811a7ae29ebc574221b3326a6

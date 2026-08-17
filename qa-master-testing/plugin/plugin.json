@@ -1,0 +1,18 @@
+{
+  "name": "qa-master-testing",
+  "version": "0.2.0",
+  "description": "Auditoria completa de software com orquestração de especialistas e execução automatizada",
+  "author": {
+    "name": "Equipe de Qualidade"
+  },
+  "skills": "../skills/",
+  "interface": {
+    "displayName": "QA Mestre",
+    "shortDescription": "Executa auditoria completa com especialistas de QA",
+    "longDescription": "Orquestra treze especialistas e consolida testes funcionais, técnicos, de experiência, desempenho, segurança e privacidade.",
+    "developerName": "Equipe de Qualidade",
+    "category": "Quality Assurance",
+    "capabilities": [],
+    "defaultPrompt": "Execute uma auditoria completa deste projeto usando o QA Mestre e todos os especialistas."
+  }
+}

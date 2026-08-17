@@ -1,624 +1,218 @@
-<<<<<<< HEAD
-# Framework de Testes Automatizados de Performance e Segurança
+# Framework Completo de Testes Automatizados
 
-Um framework completo e modular para realizar testes automatizados de performance e segurança em qualquer sistema web, API ou aplicação.
+Framework Python e pacotes portáteis de automação para planejar, executar e reportar testes de API, regras de negócio, interface, UI/UX, acessibilidade, performance, segurança e qualidade de código. Pode ser usado diretamente pela linha de comando ou incorporado a agentes compatíveis com skills em Markdown.
 
-## 📋 Índice
+## Capacidades
 
-- [Características](#características)
-- [Arquitetura](#arquitetura)
-- [Instalação](#instalação)
-- [Configuração](#configuração)
-- [Uso](#uso)
-- [Tipos de Testes](#tipos-de-testes)
-- [Relatórios](#relatórios)
-- [Exemplos](#exemplos)
-- [Personalização](#personalização)
-- [Boas Práticas](#boas-práticas)
+| Suíte | Cobertura |
+|---|---|
+| `api` | Contratos, asserções JSON, filtros, ordenação, paginação, SLA e concorrência |
+| `openapi` | OpenAPI 3.x, status declarados e validação recursiva de schemas JSON |
+| `business_rules` | Regras declarativas rastreáveis, sem uso de `eval` |
+| `web_quality` | HTML, responsividade, headings, labels, idioma, campos obrigatórios e conteúdo |
+| `browser` | Jornadas multi-browser, formulários, CPF/CNPJ, teclado, downloads e evidências |
+| `project_quality` | Sintaxe, modularidade, testes, documentação, cobertura, OpenAPI, arquivos obrigatórios e indícios de autoria automatizada |
+| `external_tools` | Semgrep, Gitleaks, Trivy, Lighthouse, k6 e ZAP com comandos allowlisted |
+| `performance` | Carga, stress, spike, percentis, erro, throughput e thresholds |
+| `security` | Headers, TLS, CORS, injeções, autenticação, rate limiting e portas, conforme configuração |
 
-## ✨ Características
+Todos os resultados são convertidos para um modelo comum, deduplicados e avaliados por quality gate. Os relatórios podem ser gerados em HTML, JSON, texto, JUnit XML e SARIF.
 
-### Testes de Performance
+## Instalação
 
-- **Teste de Carga (Load Test)**: Simula um número constante de usuários por período determinado
-- **Teste de Stress**: Aumenta gradualmente a carga até encontrar o ponto de quebra
-- **Teste de Spike**: Simula picos súbitos de tráfego
-- **Métricas Detalhadas**: Response time (avg, min, max, P50, P95, P99), throughput, taxa de erro
-
-### Testes de Segurança
-
-- **Vulnerabilidades Web**: SQL Injection, XSS, CSRF
-- **Configuração de Segurança**: Headers HTTP, SSL/TLS, CORS
-- **Autenticação**: Senhas fracas, rate limiting, gestão de sessões
-- **Testes de Injeção**: Command injection, LDAP, XML, NoSQL
-- **Análise de Rede**: Scan de portas, serviços expostos
-- **Score de Segurança**: Avaliação quantitativa da postura de segurança
-
-### Relatórios
-
-- **Múltiplos Formatos**: HTML (interativo), JSON (programático), TXT (simples)
-- **Visualizações**: Gráficos, tabelas, métricas agregadas
-- **Detalhamento**: Evidências, recomendações, referências CWE
-- **Exportação**: Fácil compartilhamento e integração CI/CD
-
-## 🏗️ Arquitetura
-
-```
-automated-testing-framework/
-├── config/
-│   └── config.yaml              # Configuração principal
-├── performance/
-│   └── performance_tester.py    # Módulo de testes de performance
-├── security/
-│   └── security_tester.py       # Módulo de testes de segurança
-├── utils/
-│   └── report_generator.py      # Gerador de relatórios
-├── examples/
-│   ├── sample_app.py            # Aplicação de exemplo
-│   └── example_config.yaml      # Configuração de exemplo
-├── reports/                     # Relatórios gerados (criado automaticamente)
-├── run_tests.py                 # Script principal
-└── README.md                    # Esta documentação
-```
-
-## 📦 Instalação
-
-### Pré-requisitos
-
-- Python 3.7 ou superior
-- pip (gerenciador de pacotes Python)
-
-### Dependências
-
-Instale as dependências necessárias:
+Requer Python 3.10 ou superior.
 
 ```bash
-pip install pyyaml requests flask
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-### Instalação Rápida
+No Linux ou macOS, usar `.venv/bin/python`.
+
+Para jornadas reais de navegador e comparação visual:
 
 ```bash
-# Clone ou baixe o framework
-cd automated-testing-framework
-
-# Instale as dependências
-pip install -r requirements.txt
-
-# Pronto para usar!
-python run_tests.py --help
+python -m pip install "playwright>=1.45.0"
+python -m pip install "Pillow>=10.0.0"
+python -m playwright install chromium
 ```
 
-## ⚙️ Configuração
+## Uso seguro
 
-O framework é configurado através do arquivo `config/config.yaml`. Este arquivo permite personalizar todos os aspectos dos testes.
+Validar o plano sem acessar o alvo:
 
-### Estrutura da Configuração
-
-#### 1. Sistema Alvo
-
-```yaml
-target:
-  name: "Meu Sistema"
-  base_url: "https://meusite.com"
-  api_endpoints:
-    - "/api/users"
-    - "/api/products"
-  web_endpoints:
-    - "/"
-    - "/login"
+```bash
+python run_tests.py --dry-run
 ```
 
-#### 2. Testes de Performance
+Executar suítes passivas contra a aplicação local configurada:
+
+```bash
+python run_tests.py --suite api --suite business_rules --suite web_quality
+```
+
+Executar testes ativos autorizados:
+
+```bash
+python run_tests.py --suite performance --authorized
+python run_tests.py --suite security --authorized
+```
+
+Chamadas mutantes, concorrência, navegador, carga e segurança exigem `--authorized`. Os códigos de saída são:
+
+- `0`: execução concluída e quality gate aprovado;
+- `1`: configuração ou execução inválida;
+- `2`: quality gate reprovado;
+- `3`: execução bloqueada pela política de segurança.
+
+## Política de segurança
+
+O arquivo padrão aponta para `127.0.0.1`. Alvos externos são bloqueados por padrão. As suítes `browser`, `performance` e `security` são consideradas ativas e exigem `--authorized` quando a política padrão estiver habilitada.
+
+Antes de testar staging ou outro alvo autorizado:
+
+1. obter autorização formal;
+2. definir allowlist e janela de execução;
+3. limitar usuários, duração e workers;
+4. executar `--dry-run`;
+5. monitorar o alvo e manter um critério de interrupção.
+
+Nunca habilitar carga, scan ou injeção em produção apenas para experimentar o framework.
+
+## Configuração
+
+O arquivo principal é `config/config.yaml`. Exemplo de contrato de API:
 
 ```yaml
-performance:
+api:
   enabled: true
-  
-  load_test:
-    enabled: true
-    users: 100           # Número de usuários simultâneos
-    duration: 60         # Duração em segundos
-    ramp_up: 10          # Tempo de ramp-up em segundos
-  
-  stress_test:
-    enabled: true
-    start_users: 10      # Usuários iniciais
-    max_users: 500       # Usuários máximos
-    step_users: 50       # Incremento por step
-    step_duration: 30    # Duração de cada step
-  
-  spike_test:
-    enabled: true
-    normal_users: 10     # Carga normal
-    spike_users: 500     # Carga no spike
-    spike_duration: 10   # Duração do spike
+  endpoints:
+    - path: /api/health
+      method: GET
+      expected_status: 200
+      content_type: application/json
+      required_json_fields: [status, timestamp]
 ```
 
-#### 3. Testes de Segurança
+Exemplo de regra de negócio:
 
 ```yaml
-security:
+business_rules:
   enabled: true
-  
-  web_vulnerabilities:
-    enabled: true
-    tests:
-      - sql_injection
-      - xss
-      - csrf
-      - security_headers
-      - ssl_tls
-      - cors
-  
-  auth_tests:
-    enabled: true
-    tests:
-      - weak_passwords
-      - session_management
-      - rate_limiting
-  
-  network_scan:
-    enabled: true
-    ports: [80, 443, 8080]
-  
-  injection_tests:
-    enabled: true
-    types:
-      - command_injection
-      - nosql_injection
+  rules:
+    - id: HEALTH-001
+      endpoint: /api/health
+      path: status
+      operator: eq
+      expected: healthy
+      severity: high
 ```
 
-#### 4. Relatórios
+Operadores suportados: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `not_contains`, `is_true`, `is_false`, `exists`, `matches`, `starts_with`, `ends_with`, `between`, `length_eq`, `is_null`, `not_null`, `sorted_asc`, `sorted_desc` e `unique`.
+
+Exemplo de filtro, ordenação, paginação e SLA de API:
 
 ```yaml
-reporting:
-  output_dir: "./reports"
-  formats:
-    - html
-    - json
-    - text
-  include_metrics: true
+api:
+  endpoints:
+    - path: /api/customers
+      params: {q: Ana, sort: name}
+      max_response_ms: 500
+      assert_filter: {items_path: items, field: name, contains: Ana}
+      assert_sorted: {items_path: items, field: name, direction: asc}
+      assert_pagination: {items_path: items, id_path: id, pages: [1, 2]}
 ```
 
-## 🚀 Uso
+Exemplo de jornada de navegador:
 
-### Uso Básico
-
-```bash
-# Executar todos os testes
-python run_tests.py -c config/config.yaml
-
-# Executar apenas testes de performance
-python run_tests.py -c config/config.yaml --performance-only
-
-# Executar apenas testes de segurança
-python run_tests.py -c config/config.yaml --security-only
-
-# Executar sem gerar relatórios
-python run_tests.py -c config/config.yaml --no-report
+```yaml
+browser:
+  enabled: true
+  journeys:
+    - name: login
+      steps:
+        - action: goto
+          path: /login
+        - action: fill
+          selector: "[name=email]"
+          value: "${TEST_USER}"
+        - action: click
+          selector: "button[type=submit]"
+        - action: check_text
+          selector: main
+          value: Dashboard
+        - action: screenshot
 ```
 
-### Exemplo Completo
+Para formulários, as jornadas também aceitam `validate_field` (perfis `cpf`, `cnpj`, `numeric` e `required`), `assert_required`, `assert_disabled`, `assert_radio_exclusive`, `assert_clear`, `assert_sorted`, `assert_persistence`, `assert_tab_order`, `assert_not_truncated`, `upload`, `download`, `assert_confirmation` e `measure_navigation`.
+
+O framework não expande segredos automaticamente. Injete credenciais por uma camada segura ou gere o YAML temporário no pipeline sem versioná-lo.
+
+A opção `project_quality.detect_ai_authorship` procura declarações explícitas, trailers de coautoria e arquivos de configuração associados a assistentes. Os resultados são sempre classificados como suspeitos: a presença é um indício a revisar, enquanto a ausência não comprova autoria humana. Use `ai_authorship_exclude` para excluir caminhos e `ai_authorship_allowlist` para exceções deliberadamente aceitas.
+
+## Estrutura
+
+```text
+testing_framework/       núcleo, segurança, orquestração e relatórios
+performance/             executor de carga, stress e spike
+security/                verificações dinâmicas de segurança
+software-testing/        distribuição universal para um único agente
+qa-master-testing/       distribuição multiagente com QA Mestre e 13 especialistas
+schemas/                 contratos JSON de plano, achado e relatório
+test/                    testes do próprio framework
+config/config.yaml       configuração segura de exemplo
+examples/sample_app.py   aplicação local intencionalmente vulnerável
+run_tests.py             CLI principal
+```
+
+## Distribuições para agentes
+
+A pasta `software-testing/` contém uma skill autocontida para ambientes que executam um único agente. O QA Mestre assume internamente todos os papéis e mantém a cobertura integral mesmo sem paralelismo.
+
+A pasta `qa-master-testing/` contém a distribuição multiagente: uma skill coordenadora e 13 skills especialistas reais para ambientes capazes de iniciar agentes auxiliares e aguardar seus resultados.
+
+As duas distribuições carregam o mesmo framework determinístico em `assets/` e executam as mesmas nove suítes. A distribuição multiagente é canônica quando o ambiente suporta agentes auxiliares; a distribuição de agente único é a alternativa universal.
+
+## Pacote multiagente QA Mestre
+
+O manifesto neutro fica em `plugin/plugin.json`. O pacote contém uma skill `qa-master` e 13 skills especialistas reais. Os dois prompts-fonte completos são referências normativas, com matriz de rastreabilidade para que nenhuma regra seja perdida durante a reorganização. O QA Mestre cria os subagentes, espera cada resultado, verifica modos, controles, 25 dimensões, 24 testes adversariais, proveniência do código e nove suítes, e só então chama `qa-consolidator`. A ausência de qualquer agente ou obrigação bloqueia a conclusão.
+
+Inicializar e validar o contrato de uma auditoria completa:
 
 ```bash
-# 1. Inicie a aplicação de exemplo (em um terminal)
+python qa-master-testing/scripts/init_run.py qa-results/execucao
+python qa-master-testing/scripts/check_run.py qa-results/execucao
+python qa-master-testing/scripts/check_run.py qa-results/execucao --final
+```
+
+O validador exige resultados reais dos 13 agentes, cobertura das nove suítes, 25 dimensões, 24 testes adversariais e todos os entregáveis.
+
+Validar o pacote multiagente:
+
+```bash
+python qa-master-testing/scripts/validate_bundle.py qa-master-testing
+```
+
+## Desenvolvimento e validação
+
+```bash
+python -m unittest discover -s test -v
+python -m compileall -q run_tests.py testing_framework performance security test
+```
+
+Inicie a aplicação local somente para testes controlados:
+
+```bash
 python examples/sample_app.py
-
-# 2. Execute os testes (em outro terminal)
-python run_tests.py -c examples/example_config.yaml
-
-# 3. Visualize os relatórios
-open reports/report_*.html
+python run_tests.py --suite api --suite business_rules --suite web_quality
 ```
 
-### Integração CI/CD
-
-```bash
-# Exemplo de integração em pipeline
-python run_tests.py -c config/config.yaml --security-only
-if [ $? -ne 0 ]; then
-    echo "Testes de segurança falharam!"
-    exit 1
-fi
-```
-
-## 🧪 Tipos de Testes
-
-### Testes de Performance
-
-#### Teste de Carga (Load Test)
-
-Simula um número constante de usuários acessando o sistema simultaneamente por um período determinado. Útil para:
-
-- Validar se o sistema suporta a carga esperada
-- Identificar gargalos de performance
-- Medir tempos de resposta sob carga normal
-
-**Métricas Coletadas:**
-- Total de requisições
-- Taxa de sucesso/erro
-- Tempo médio de resposta
-- Percentis (P50, P95, P99)
-- Requisições por segundo (RPS)
-
-#### Teste de Stress
-
-Aumenta gradualmente o número de usuários até encontrar o ponto de quebra do sistema. Útil para:
-
-- Determinar capacidade máxima
-- Identificar quando o sistema começa a degradar
-- Planejar escalabilidade
-
-**Como Funciona:**
-1. Inicia com poucos usuários
-2. Aumenta gradualmente em steps
-3. Monitora degradação de performance
-4. Para quando detecta falhas significativas
-
-#### Teste de Spike
-
-Simula um aumento súbito de tráfego. Útil para:
-
-- Validar comportamento em picos de acesso
-- Testar auto-scaling
-- Verificar recuperação após pico
-
-**Fases:**
-1. **Baseline**: Carga normal para estabelecer baseline
-2. **Spike**: Aumento súbito de usuários
-3. **Recuperação**: Retorno à carga normal
-
-### Testes de Segurança
-
-#### SQL Injection
-
-Testa se o sistema é vulnerável a injeção de código SQL através de:
-
-- Payloads comuns de SQL injection
-- Análise de mensagens de erro do banco
-- Detecção de comportamento anômalo
-
-**Severidade**: Crítica (CWE-89)
-
-#### Cross-Site Scripting (XSS)
-
-Verifica se o sistema reflete entrada do usuário sem sanitização:
-
-- XSS refletido
-- XSS armazenado
-- XSS baseado em DOM
-
-**Severidade**: Alta (CWE-79)
-
-#### Headers de Segurança
-
-Verifica presença e configuração de headers HTTP importantes:
-
-- `X-Frame-Options` (proteção contra clickjacking)
-- `X-Content-Type-Options` (previne MIME sniffing)
-- `Strict-Transport-Security` (força HTTPS)
-- `Content-Security-Policy` (previne XSS e injeção)
-- `X-XSS-Protection` (proteção XSS do navegador)
-
-**Severidade**: Média a Alta
-
-#### SSL/TLS
-
-Analisa configuração de criptografia:
-
-- Versões de protocolo (TLS 1.2+)
-- Cifras utilizadas
-- Validade de certificados
-
-**Severidade**: Alta (CWE-326, CWE-327)
-
-#### CORS
-
-Verifica configuração de Cross-Origin Resource Sharing:
-
-- Wildcard (`*`) em Access-Control-Allow-Origin
-- Reflexão de origens não confiáveis
-- Credenciais em requisições cross-origin
-
-**Severidade**: Média (CWE-942)
-
-#### Autenticação
-
-Testa robustez do sistema de autenticação:
-
-- Senhas fracas ou padrão
-- Política de senhas
-- Rate limiting em login
-- Gestão de sessões
-
-**Severidade**: Crítica (CWE-521)
-
-#### Command Injection
-
-Verifica se o sistema executa comandos do sistema com entrada do usuário:
-
-- Payloads de command injection
-- Detecção de saída de comandos
-- Análise de comportamento
-
-**Severidade**: Crítica (CWE-78)
-
-#### Scan de Portas
-
-Identifica portas e serviços expostos:
-
-- Portas abertas
-- Serviços potencialmente inseguros
-- Exposição desnecessária
-
-**Severidade**: Alta (CWE-16)
-
-## 📊 Relatórios
-
-### Formato HTML
-
-Relatório interativo e visual com:
-
-- Dashboard com métricas principais
-- Gráficos e visualizações
-- Detalhamento de vulnerabilidades
-- Recomendações de correção
-- Score de segurança
-
-**Ideal para**: Apresentações, compartilhamento com equipe, análise visual
-
-### Formato JSON
-
-Relatório estruturado em JSON com:
-
-- Dados completos dos testes
-- Métricas em formato programático
-- Fácil integração com outras ferramentas
-
-**Ideal para**: Integração CI/CD, processamento automatizado, APIs
-
-### Formato Texto
-
-Relatório simples em texto plano com:
-
-- Resumo dos testes
-- Principais métricas
-- Lista de vulnerabilidades
-
-**Ideal para**: Logs, emails, sistemas legados
-
-### Estrutura dos Relatórios
-
-```
-reports/
-├── report_20240613_143022.html
-├── report_20240613_143022.json
-└── report_20240613_143022.txt
-```
-
-## 💡 Exemplos
-
-### Exemplo 1: Testar API REST
-
-```yaml
-target:
-  name: "Minha API"
-  base_url: "https://api.exemplo.com"
-  api_endpoints:
-    - "/v1/users"
-    - "/v1/products"
-    - "/v1/orders"
-
-performance:
-  enabled: true
-  load_test:
-    users: 200
-    duration: 120
-
-security:
-  enabled: true
-  web_vulnerabilities:
-    enabled: true
-```
-
-### Exemplo 2: Testar Aplicação Web
-
-```yaml
-target:
-  name: "Portal Web"
-  base_url: "https://www.exemplo.com"
-  web_endpoints:
-    - "/"
-    - "/login"
-    - "/dashboard"
-    - "/profile"
-
-security:
-  enabled: true
-  web_vulnerabilities:
-    tests:
-      - xss
-      - security_headers
-      - ssl_tls
-      - cors
-```
-
-### Exemplo 3: Teste Rápido de Segurança
-
-```yaml
-target:
-  name: "Teste Rápido"
-  base_url: "http://localhost:3000"
-  api_endpoints:
-    - "/api/health"
-
-performance:
-  enabled: false
-
-security:
-  enabled: true
-  web_vulnerabilities:
-    enabled: true
-  auth_tests:
-    enabled: true
-  network_scan:
-    enabled: true
-```
-
-## 🎨 Personalização
-
-### Adicionar Novos Testes de Performance
-
-Edite `performance/performance_tester.py` e adicione novos métodos:
-
-```python
-def endurance_test(self) -> Dict[str, Any]:
-    """Teste de Endurance: execução prolongada"""
-    # Sua implementação aqui
-    pass
-```
-
-### Adicionar Novos Testes de Segurança
-
-Edite `security/security_tester.py` e adicione novos métodos:
-
-```python
-def test_xxe(self) -> List[SecurityIssue]:
-    """Testa XML External Entity (XXE)"""
-    # Sua implementação aqui
-    pass
-```
-
-### Customizar Payloads
-
-Modifique os payloads de teste em `security_tester.py`:
-
-```python
-self.sql_payloads = [
-    "' OR '1'='1",
-    "seu_payload_customizado",
-    # ...
-]
-```
-
-### Adicionar Novos Formatos de Relatório
-
-Edite `utils/report_generator.py` e adicione novos métodos:
-
-```python
-def generate_pdf_report(self, results: Dict[str, Any]) -> str:
-    """Gera relatório em PDF"""
-    # Sua implementação aqui
-    pass
-```
-
-## 📚 Boas Práticas
-
-### Performance
-
-1. **Comece Pequeno**: Inicie com poucos usuários e aumente gradualmente
-2. **Ambiente Isolado**: Execute testes em ambiente de staging, não produção
-3. **Monitore Recursos**: Observe CPU, memória e rede durante os testes
-4. **Defina Baselines**: Estabeleça métricas de referência para comparação
-5. **Teste Regularmente**: Integre testes de performance no CI/CD
-
-### Segurança
-
-1. **Autorização**: Obtenha permissão antes de testar sistemas de terceiros
-2. **Ambiente Controlado**: Prefira ambientes de teste
-3. **Rate Limiting**: Configure timeouts adequados para não sobrecarregar
-4. **Falsos Positivos**: Valide manualmente vulnerabilidades críticas
-5. **Correção**: Priorize correção de vulnerabilidades críticas e altas
-
-### Configuração
-
-1. **Versionamento**: Mantenha configurações no controle de versão
-2. **Documentação**: Documente configurações específicas do projeto
-3. **Sensibilidade**: Não commite credenciais ou dados sensíveis
-4. **Modularidade**: Use múltiplos arquivos de configuração para diferentes ambientes
-5. **Validação**: Valide configurações antes de executar testes
-
-### Relatórios
-
-1. **Armazenamento**: Mantenha histórico de relatórios para análise temporal
-2. **Compartilhamento**: Defina processo para compartilhar resultados
-3. **Ação**: Estabeleça SLAs para correção de vulnerabilidades
-4. **Métricas**: Acompanhe evolução de métricas ao longo do tempo
-5. **Automação**: Integre geração de relatórios em pipelines
-
-## 🔧 Solução de Problemas
-
-### Erro de Conexão
-
-```
-ConnectionError: Failed to establish connection
-```
-
-**Solução**: Verifique se o sistema alvo está acessível e a URL está correta.
-
-### Timeout
-
-```
-TimeoutError: Request timed out
-```
-
-**Solução**: Aumente o valor de `timeout` em `config.yaml`:
-
-```yaml
-general:
-  timeout: 60  # Aumentar para 60 segundos
-```
-
-### Muitos Erros em Testes de Performance
-
-**Solução**: Reduza o número de usuários ou aumente recursos do sistema alvo.
-
-### Falsos Positivos em Segurança
-
-**Solução**: Valide manualmente e ajuste payloads ou desabilite testes específicos.
-
-## 📄 Licença
-
-Este framework é fornecido "como está", sem garantias. Use por sua conta e risco.
-
-## 🤝 Contribuições
-
-Contribuições são bem-vindas! Sinta-se livre para:
-
-- Reportar bugs
-- Sugerir novos recursos
-- Melhorar documentação
-- Adicionar novos testes
-
-## 📞 Suporte
-
-Para dúvidas ou problemas:
-
-1. Consulte esta documentação
-2. Verifique os exemplos em `examples/`
-3. Analise os logs de execução
-4. Revise o código-fonte (bem documentado)
-
-## 🎯 Roadmap
-
-Funcionalidades planejadas:
-
-- [ ] Testes de endurance
-- [ ] Integração com Prometheus/Grafana
-- [ ] Suporte a WebSockets
-- [ ] Testes de API GraphQL
-- [ ] Dashboard web interativo
-- [ ] Notificações (email, Slack, Teams)
-- [ ] Exportação para PDF
-- [ ] Testes de acessibilidade
-- [ ] Análise de dependências vulneráveis
-- [ ] Integração com OWASP ZAP
-
----
-
-**Desenvolvido com ❤️ para ajudar a construir sistemas mais seguros e performáticos**
-=======
-# automated_testing_framework
-Framework de testes de performance e segurança
->>>>>>> b09215b4073266a811a7ae29ebc574221b3326a6
+Os artefatos em `reports/` e caches Python são ignorados pelo controle de versão.
+
+## Limitações conhecidas
+
+- A auditoria `web_quality` é estrutural; contraste calculado e testes completos de teclado exigem Playwright/axe.
+- Achados do módulo dinâmico de segurança são marcados como suspeitos até confirmação.
+- Performance de frontend e Core Web Vitals devem ser complementados com Lighthouse.
+- Observabilidade de servidor depende de integração com a plataforma do ambiente-alvo.
+- Conformidade com protótipo, ortografia sem glossário, experiência subjetiva e LGPD sem requisitos jurídicos continuam exigindo baseline ou revisão humana.

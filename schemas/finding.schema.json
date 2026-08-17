@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "finding.schema.json",
+  "type": "object",
+  "required": ["id", "category", "title", "description", "severity", "confidence", "status"],
+  "properties": {
+    "id": {"type": "string"},
+    "category": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "description": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["low", "medium", "high"]},
+    "status": {"enum": ["confirmed", "suspected", "accepted", "resolved"]},
+    "location": {"type": "string"},
+    "expected": {"type": "string"},
+    "observed": {"type": "string"},
+    "evidence": {"type": "string"},
+    "recommendation": {"type": "string"}
+  },
+  "additionalProperties": true
+}
+

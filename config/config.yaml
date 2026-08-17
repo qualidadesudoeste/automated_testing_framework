@@ -1,82 +1,193 @@
-# Configurações do Sistema Alvo
 target:
-  name: "Gestão de Projetos Sefaz"
-  base_url: "https://app3.makernocode.dev/"
+  name: "Aplicação local de exemplo"
+  base_url: "http://127.0.0.1:8000"
+  api_endpoints:
+    - "/api/health"
+    - "/api/users"
   web_endpoints:
-    - "/open.do?sys=FPG"
+    - "/"
+    - "/dashboard"
+    - "/form-test"
 
-# Configurações de Testes de Performance
-performance:
+safety:
+  allow_external_targets: false
+  require_authorization_for_active_tests: true
+  max_users: 50
+  max_duration_seconds: 300
+
+api:
   enabled: true
-  
-  # Teste de Carga
+  endpoints:
+    - path: "/api/health"
+      method: "GET"
+      expected_status: 200
+      content_type: "application/json"
+      required_json_fields: ["status", "timestamp"]
+    - path: "/api/users"
+      method: "GET"
+      expected_status: 200
+      content_type: "application/json"
+      max_response_ms: 500
+      json_assertions:
+        - path: "users"
+          operator: "length_eq"
+          expected: 2
+          requirement_id: "USER-LIST-001"
+    - path: "/api/customers"
+      method: "GET"
+      params: {q: "Ana", sort: "name"}
+      expected_status: 200
+      content_type: "application/json"
+      max_response_ms: 500
+      assert_filter:
+        items_path: "items"
+        field: "name"
+        contains: "Ana"
+      assert_sorted:
+        items_path: "items"
+        field: "name"
+        direction: "asc"
+    - path: "/api/customers"
+      method: "GET"
+      params: {sort: "name"}
+      expected_status: 200
+      assert_pagination:
+        page_param: "page"
+        pages: [1, 2]
+        items_path: "items"
+        id_path: "id"
+
+openapi:
+  enabled: false
+  spec: "../examples/openapi.yaml"
+
+external_tools:
+  enabled: false
+  project_root: ".."
+  evidence_dir: "./reports/tools"
+  timeout: 600
+  tools: []
+
+project_quality:
+  enabled: false
+  project_root: ".."
+  max_file_lines: 600
+  min_documented_ratio: 0.5
+  require_openapi: true
+  require_coverage: true
+  required_files: ["README.md"]
+  detect_ai_authorship: true
+  ai_authorship_severity: low
+  ai_authorship_max_file_bytes: 1000000
+  ai_authorship_max_findings: 100
+  ai_authorship_exclude: []
+  ai_authorship_allowlist: []
+
+business_rules:
+  enabled: true
+  rules:
+    - id: "HEALTH-001"
+      description: "O serviço deve declarar estado saudável."
+      endpoint: "/api/health"
+      path: "status"
+      operator: "eq"
+      expected: "healthy"
+      severity: "high"
+
+web_quality:
+  enabled: true
+  pages: ["/", "/dashboard", "/form-test"]
+
+browser:
+  enabled: false
+  headless: true
+  engines: ["chromium"]
+  trace: true
+  fail_on_console_error: false
+  max_diff_ratio: 0.001
+  evidence_dir: "./reports/evidence"
+  journeys:
+    - name: "home"
+      steps:
+        - action: "goto"
+          path: "/"
+        - action: "check_text"
+          selector: "body"
+          value: "API"
+        - action: "screenshot"
+    - name: "field-validation"
+      steps:
+        - action: "goto"
+          path: "/form-test"
+        - action: "assert_required"
+          selector: "#cpf"
+          indicator_selector: "label[for=cpf] .required"
+        - action: "validate_field"
+          selector: "#cpf"
+          profile: "cpf"
+          error_selector: "#cpf-error"
+          max_length: 14
+        - action: "assert_radio_exclusive"
+          selector: "input[name=status]"
+        - action: "assert_clear"
+          clear_selector: "#clear"
+          fields:
+            - selector: "#name"
+              value: "Ana Paula"
+        - action: "assert_tab_order"
+          selectors: ["#cpf", "#name", "#active", "#clear"]
+        - action: "measure_navigation"
+          path: "/form-test"
+          max_ms: 2000
+
+performance:
+  enabled: false
   load_test:
     enabled: true
-    users: 50
-    duration: 30
-    ramp_up: 5
-    
-  # Teste de Stress
+    users: 5
+    duration: 10
+    ramp_up: 2
   stress_test:
-    enabled: true
-    start_users: 10
-    max_users: 100
-    step_users: 20
-    step_duration: 20
-    
-  # Teste de Spike
+    enabled: false
+    start_users: 2
+    max_users: 10
+    step_users: 2
+    step_duration: 5
   spike_test:
-    enabled: true
-    normal_users: 10
-    spike_users: 100
-    spike_duration: 10
-    
-  # Métricas de Performance
+    enabled: false
+    normal_users: 2
+    spike_users: 10
+    spike_duration: 5
   thresholds:
-    response_time_p95: 5000
-    response_time_p99: 6000
+    response_time_p95: 500
+    response_time_p99: 1000
     error_rate: 0.05
-    requests_per_second: 15
+    requests_per_second: 5
 
-# Configurações de Testes de Segurança
 security:
-  enabled: true
-  
-  # Testes de Vulnerabilidades Web
+  enabled: false
   web_vulnerabilities:
     enabled: true
-    tests:
-      - security_headers
-      - ssl_tls
-      - cors
-      
-  # Testes de Autenticação
+    tests: ["security_headers", "ssl_tls", "cors"]
   auth_tests:
     enabled: false
-    
-  # Scan de Portas
+    tests: []
   network_scan:
-    enabled: true
-    ports:
-      - 80
-      - 443
-    
-  # Testes de Injeção
+    enabled: false
+    ports: [8000]
   injection_tests:
     enabled: false
+    types: []
 
-# Configurações de Relatórios
+quality_gate:
+  fail_on: ["critical", "high"]
+
 reporting:
   output_dir: "./reports"
-  formats:
-    - html
-    - json
-  include_metrics: true
-  
-# Configurações Gerais
+  formats: ["html", "json", "junit", "sarif", "text"]
+
 general:
-  timeout: 30
-  retry_attempts: 2
-  parallel_execution: true
-  max_workers: 100
+  timeout: 10
+  retry_attempts: 0
+  max_workers: 10
   log_level: "INFO"

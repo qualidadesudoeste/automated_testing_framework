@@ -93,13 +93,13 @@ class SecurityTester:
         """Adiciona uma vulnerabilidade à lista"""
         self.issues.append(issue)
         severity_emoji = {
-            'critical': '🔴',
-            'high': '🟠',
-            'medium': '🟡',
-            'low': '🔵',
-            'info': 'ℹ️'
+            'critical': '[CRITICAL]',
+            'high': '[HIGH]',
+            'medium': '[MEDIUM]',
+            'low': '[LOW]',
+            'info': '[INFO]'
         }
-        print(f"  {severity_emoji.get(issue.severity, '•')} [{issue.severity.upper()}] {issue.title}")
+        print(f"  {severity_emoji.get(issue.severity, '[ISSUE]')} {issue.title}")
     
     def test_sql_injection(self) -> List[SecurityIssue]:
         """Testa vulnerabilidades de SQL Injection"""
@@ -538,7 +538,7 @@ class SecurityTester:
                 
                 if result == 0:
                     open_ports.append(port)
-                    print(f"  ✓ Porta {port} está aberta")
+                    print(f"  [OK] Porta {port} está aberta")
             
             except Exception:
                 pass
@@ -601,13 +601,13 @@ class SecurityTester:
                 results['tests_executed'].append('cors')
         
         injection_config = self.sec_config.get('injection_tests', {})
-        if injection_config.get('enabled', True):
+        if injection_config.get('enabled', False):
             if 'command_injection' in injection_config.get('types', []):
                 self.test_command_injection()
                 results['tests_executed'].append('command_injection')
         
         auth_config = self.sec_config.get('auth_tests', {})
-        if auth_config.get('enabled', True):
+        if auth_config.get('enabled', False):
             tests = auth_config.get('tests', [])
             
             if 'weak_passwords' in tests:
@@ -619,7 +619,7 @@ class SecurityTester:
                 results['tests_executed'].append('rate_limiting')
         
         network_config = self.sec_config.get('network_scan', {})
-        if network_config.get('enabled', True):
+        if network_config.get('enabled', False):
             self.scan_ports()
             results['tests_executed'].append('port_scan')
         

@@ -1,0 +1,48 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from testing_framework.config import load_config, selected_suites
+
+
+class ConfigTests(unittest.TestCase):
+    def test_loads_defaults_and_enabled_suites(self):
+        content = """
+target:
+  base_url: http://127.0.0.1:8000
+api:
+  enabled: true
+security:
+  enabled: false
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.yaml"
+            path.write_text(content, encoding="utf-8")
+            config = load_config(path)
+        self.assertEqual(selected_suites(config), ["api"])
+        self.assertEqual(config["general"]["timeout"], 15)
+
+    def test_rejects_non_http_target(self):
+        content = "target:\n  base_url: file:///tmp/data\n"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.yaml"
+            path.write_text(content, encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_config(path)
+
+    def test_rejects_invalid_authorship_scan_limits(self):
+        content = """
+target:
+  base_url: http://127.0.0.1:8000
+project_quality:
+  ai_authorship_max_findings: 0
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.yaml"
+            path.write_text(content, encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_config(path)
+
+
+if __name__ == "__main__":
+    unittest.main()

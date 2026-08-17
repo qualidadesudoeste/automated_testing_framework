@@ -1,16 +1,8 @@
-# Dependências do Framework de Testes Automatizados
+PyYAML>=6.0
+requests>=2.31.0
+Flask>=2.3.0
 
-# Core
-pyyaml>=6.0
-requests>=2.28.0
-
-# Para aplicação de exemplo
-flask>=2.3.0
-
-# Opcional: Para relatórios PDF (descomente se necessário)
-# reportlab>=4.0.0
-# weasyprint>=59.0
-
-# Opcional: Para gráficos avançados (descomente se necessário)
-# matplotlib>=3.7.0
-# plotly>=5.14.0
+# Para jornadas reais de navegador, instalar separadamente:
+# pip install "playwright>=1.45.0"
+# playwright install chromium
+# pip install "Pillow>=10.0.0"  # comparação visual

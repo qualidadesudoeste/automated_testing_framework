@@ -1,0 +1,54 @@
+openapi: 3.0.3
+info:
+  title: Sample Application API
+  version: 1.0.0
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Serviço disponível
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: number
+  /api/users:
+    get:
+      operationId: getUsers
+      responses:
+        "200":
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/customers:
+    get:
+      operationId: getCustomers
+      responses:
+        "200":
+          description: Clientes paginados
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total, page]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name]
+                      properties:
+                        id: {type: integer}
+                        name: {type: string}
+                  total: {type: integer}
+                  page: {type: integer}

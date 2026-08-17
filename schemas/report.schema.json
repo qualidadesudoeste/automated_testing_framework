@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "report.schema.json",
+  "type": "object",
+  "required": ["target", "summary", "suites", "quality_gate"],
+  "properties": {
+    "target": {"type": "object"},
+    "summary": {"type": "object"},
+    "suites": {"type": "array"},
+    "quality_gate": {"type": "object", "required": ["passed"]}
+  },
+  "additionalProperties": true
+}
+

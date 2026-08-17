@@ -12,6 +12,8 @@ from typing import List, Dict, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 @dataclass
@@ -123,7 +125,20 @@ class PerformanceTester:
         self.target = config.get('target', {})
         self.perf_config = config.get('performance', {})
         self.timeout = config.get('general', {}).get('timeout', 30)
+        self.max_workers = max(1, int(config.get('general', {}).get('max_workers', 10)))
         self.session = requests.Session()
+        retries = max(0, int(config.get('general', {}).get('retry_attempts', 0)))
+        retry_policy = Retry(
+            total=retries,
+            connect=retries,
+            read=retries,
+            status=retries,
+            backoff_factor=0.2,
+            status_forcelist=(429, 502, 503, 504),
+            allowed_methods=frozenset({'GET', 'HEAD', 'OPTIONS'}),
+        )
+        self.session.mount('http://', HTTPAdapter(max_retries=retry_policy))
+        self.session.mount('https://', HTTPAdapter(max_retries=retry_policy))
         
     def _make_request(self, url: str, method: str = 'GET', **kwargs) -> RequestResult:
         """Realiza uma requisição HTTP e mede o tempo de resposta"""
@@ -231,7 +246,7 @@ class PerformanceTester:
         # Implementa ramp-up gradual
         users_per_batch = max(1, users // (ramp_up if ramp_up > 0 else 1))
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=users) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(users, self.max_workers)) as executor:
             futures = []
             
             for i in range(users):
@@ -257,7 +272,7 @@ class PerformanceTester:
         total_duration = time.time() - start_time
         metrics = self._aggregate_results(all_results, total_duration)
         
-        print(f"  ✓ Teste concluído: {metrics.total_requests} requisições em {total_duration:.2f}s")
+        print(f"  [OK] Teste concluído: {metrics.total_requests} requisições em {total_duration:.2f}s")
         print(f"  Taxa de sucesso: {metrics.success_rate:.2f}%")
         print(f"  Tempo médio de resposta: {metrics.avg_response_time:.2f}ms")
         
@@ -298,7 +313,7 @@ class PerformanceTester:
             all_results = []
             start_time = time.time()
             
-            with concurrent.futures.ThreadPoolExecutor(max_workers=current_users) as executor:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(current_users, self.max_workers)) as executor:
                 futures = [
                     executor.submit(self._simulate_user, endpoints, duration=step_duration)
                     for _ in range(current_users)
@@ -326,7 +341,7 @@ class PerformanceTester:
             
             # Verifica se o sistema está degradando significativamente
             if metrics.error_rate > 10 or metrics.p95_response_time > 5000:
-                print(f"  ⚠ Sistema sob stress significativo com {current_users} usuários")
+                print(f"  [WARN] Sistema sob stress significativo com {current_users} usuários")
                 break
         
         return {
@@ -360,7 +375,7 @@ class PerformanceTester:
         baseline_results = []
         start_time = time.time()
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=normal_users) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(normal_users, self.max_workers)) as executor:
             futures = [
                 executor.submit(self._simulate_user, endpoints, duration=10)
                 for _ in range(normal_users)
@@ -376,7 +391,7 @@ class PerformanceTester:
         spike_results = []
         start_time = time.time()
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=spike_users) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(spike_users, self.max_workers)) as executor:
             futures = [
                 executor.submit(self._simulate_user, endpoints, duration=spike_duration)
                 for _ in range(spike_users)
@@ -392,7 +407,7 @@ class PerformanceTester:
         recovery_results = []
         start_time = time.time()
         
-        with concurrent.futures.ThreadPoolExecutor(max_workers=normal_users) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(normal_users, self.max_workers)) as executor:
             futures = [
                 executor.submit(self._simulate_user, endpoints, duration=10)
                 for _ in range(normal_users)

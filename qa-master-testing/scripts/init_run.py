@@ -11,13 +11,33 @@ from pathlib import Path
 from run_contract import ALL_AGENTS, SUITES
 
 
-def main() -> int:
+def is_inside(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Inicializar execução do QA Mestre")
     parser.add_argument("run_dir", type=Path)
+    parser.add_argument(
+        "--project-root", type=Path, required=True,
+        help="Raiz do projeto-alvo auditado. O diretório de execução nunca pode ficar dentro dela: "
+             "entregáveis vivem fora do repositório testado, nunca versionados junto com ele.",
+    )
     parser.add_argument("--surface", choices=["auto", "A", "B", "C", "D"], default="auto")
     parser.add_argument("--depth", choices=["rapido", "padrao", "profundo"], default="profundo")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     root = args.run_dir.resolve()
+    project_root = args.project_root.resolve()
+    if is_inside(root, project_root):
+        parser.error(
+            f"diretório de execução dentro do projeto-alvo: {root} está sob {project_root}. "
+            "Use um caminho fora do repositório auditado (ex.: pasta temporária do sistema ou "
+            "diretório irmão do projeto)."
+        )
     root.mkdir(parents=True, exist_ok=True)
     for directory in ("agents", "evidence", "framework"):
         (root / directory).mkdir(exist_ok=True)

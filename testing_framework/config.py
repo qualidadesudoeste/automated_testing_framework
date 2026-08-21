@@ -17,9 +17,10 @@ DEFAULTS: dict[str, Any] = {
         "require_authorization_for_active_tests": True,
         "max_users": 50,
         "max_duration_seconds": 300,
+        "max_requests_per_probe": 50,
     },
     "quality_gate": {"fail_on": ["critical", "high"]},
-    "reporting": {"output_dir": "./reports", "formats": ["html", "json", "junit", "sarif"]},
+    "reporting": {"output_dir": "./reports", "output_dir_base": "cwd", "formats": ["html", "json", "junit", "sarif"]},
 }
 
 
@@ -58,7 +59,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if parsed.username or parsed.password:
         raise ValueError("target.base_url não pode conter credenciais")
 
-    for section in ("api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security"):
+    for section in ("api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security", "access_control"):
         if section in config and not isinstance(config[section], dict):
             raise ValueError(f"A seção {section} deve ser um objeto")
 
@@ -70,6 +71,14 @@ def validate_config(config: dict[str, Any]) -> None:
     unsupported = set(formats) - {"html", "json", "junit", "sarif", "text"}
     if unsupported:
         raise ValueError(f"Formatos de relatório inválidos: {sorted(unsupported)}")
+
+    output_dir_base = config["reporting"].get("output_dir_base", "cwd")
+    if output_dir_base not in {"cwd", "config"}:
+        raise ValueError("reporting.output_dir_base deve ser 'cwd' ou 'config'")
+
+    max_requests_per_probe = config["safety"].get("max_requests_per_probe", 50)
+    if not isinstance(max_requests_per_probe, int) or isinstance(max_requests_per_probe, bool) or max_requests_per_probe <= 0:
+        raise ValueError("safety.max_requests_per_probe deve ser um inteiro positivo")
 
     project_quality = config.get("project_quality", {})
     provenance_severity = str(project_quality.get("ai_authorship_severity", "low")).lower()
@@ -86,7 +95,7 @@ def validate_config(config: dict[str, Any]) -> None:
 
 
 def selected_suites(config: dict[str, Any], requested: list[str] | None = None) -> list[str]:
-    known = ["api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security"]
+    known = ["api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security", "access_control"]
     if requested:
         invalid = set(requested) - set(known)
         if invalid:

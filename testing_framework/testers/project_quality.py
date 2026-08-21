@@ -18,7 +18,7 @@ class ProjectQualityTester:
         self.config = config
         self.quality_config = config.get("project_quality", {})
         config_path = Path(config.get("_config_path", ".")).resolve()
-        raw = Path(str(self.quality_config.get("project_root", config_path.parent.parent)))
+        raw = Path(str(self.quality_config.get("project_root", config_path.parent)))
         self.root = (config_path.parent / raw).resolve() if not raw.is_absolute() else raw.resolve()
 
     def run(self) -> SuiteResult:

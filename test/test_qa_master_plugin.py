@@ -25,6 +25,7 @@ class QaMasterPluginTests(unittest.TestCase):
         cls.contract = load("run_contract")
         cls.checker = load("check_run")
         cls.bundle_validator = load("validate_bundle")
+        cls.initializer = load("init_run")
 
     def write_result(self, root, agent, coverage=None):
         payload = {
@@ -65,6 +66,30 @@ class QaMasterPluginTests(unittest.TestCase):
             for deliverable in self.contract.DELIVERABLES:
                 (root / deliverable).write_text("complete", encoding="utf-8")
             self.assertEqual(self.checker.validate_run(root, final=True), [])
+
+    def test_init_run_requires_project_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory) / "run"
+            with self.assertRaises(SystemExit):
+                self.initializer.main([str(run_dir)])
+
+    def test_init_run_rejects_run_dir_inside_project_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project_root = Path(directory) / "meu-projeto"
+            project_root.mkdir()
+            run_dir = project_root / "qa-results"
+            with self.assertRaises(SystemExit):
+                self.initializer.main([str(run_dir), "--project-root", str(project_root)])
+            self.assertFalse(run_dir.exists())
+
+    def test_init_run_accepts_run_dir_outside_project_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project_root = Path(directory) / "meu-projeto"
+            project_root.mkdir()
+            run_dir = Path(directory) / "qa-results"
+            code = self.initializer.main([str(run_dir), "--project-root", str(project_root)])
+            self.assertEqual(code, 0)
+            self.assertTrue((run_dir / "run-manifest.json").is_file())
 
 
 if __name__ == "__main__":

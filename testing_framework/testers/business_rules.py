@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 import requests
 
-from ..http import create_session, target_url
+from ..http import assert_same_origin_response, create_session, target_url
 from ..models import Finding, SuiteResult
 from ..assertions import OPERATORS, resolve
 
@@ -54,6 +54,7 @@ class BusinessRuleTester:
                 json=rule.get("json"),
                 timeout=self.timeout,
             )
+            assert_same_origin_response(self.config["target"]["base_url"], response)
             response.raise_for_status()
             payload = response.json()
         except (requests.RequestException, ValueError) as exc:

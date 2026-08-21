@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from ..http import create_session, target_url
+from ..http import assert_same_origin_response, create_session, target_url
 from ..models import Finding, SuiteResult
 
 
@@ -73,6 +73,7 @@ class OpenApiTester:
         try:
             url = target_url(self.config["target"]["base_url"], path)
             response = self.session.get(url, timeout=self.timeout)
+            assert_same_origin_response(self.config["target"]["base_url"], response)
         except Exception as exc:
             result.findings.append(Finding("api-contract", f"Operação GET falhou: {path}", "Não foi possível executar o smoke test do contrato.", "high", "high", location=path, observed=str(exc)))
             return

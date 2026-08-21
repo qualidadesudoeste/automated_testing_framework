@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import operator
+import os
 import re
 from typing import Any, Callable
 
@@ -30,6 +31,22 @@ OPERATORS: dict[str, Callable[[Any, Any], bool]] = {
     "sorted_desc": lambda actual, _expected: list(actual) == sorted(actual, reverse=True),
     "unique": lambda actual, _expected: len(actual) == len(set(actual)),
 }
+
+
+def resolve_placeholder(raw: Any) -> str:
+    """Substitui ``${ENV_VAR}`` pelo valor da variável de ambiente correspondente.
+
+    Convenção compartilhada por qualquer tester que precise injetar segredos (tokens,
+    credenciais) sem gravá-los no YAML de configuração — usada por ``browser.py`` e por
+    ``access_control.py``.
+    """
+    value = str(raw)
+    if value.startswith("${") and value.endswith("}"):
+        name = value[2:-1]
+        if name not in os.environ:
+            raise ValueError(f"Variável de ambiente obrigatória ausente: {name}")
+        return os.environ[name]
+    return value
 
 
 def resolve(value: Any, path: str) -> tuple[bool, Any]:

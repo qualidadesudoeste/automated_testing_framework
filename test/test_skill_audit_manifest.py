@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,7 @@ class AuditManifestTests(unittest.TestCase):
         sys.path.insert(0, str(SCRIPTS))
         cls.contract = load_module("audit_manifest")
         cls.validator = load_module("validate_audit")
+        cls.initializer = load_module("init_audit")
 
     def test_new_manifest_exposes_every_required_item(self):
         manifest = self.contract.new_manifest()
@@ -63,6 +65,41 @@ class AuditManifestTests(unittest.TestCase):
         errors = self.validator.validate_manifest(manifest)
         self.assertTrue(any("roles.system-mapper: deve ser complete" in error for error in errors))
         self.assertTrue(any("deliverables.PENDING.md: deve ser complete" in error for error in errors))
+
+
+class InitAuditOutputIsolationTests(unittest.TestCase):
+    """O diretório de saída da auditoria deve ficar sempre fora do projeto-alvo."""
+
+    @classmethod
+    def setUpClass(cls):
+        import sys
+
+        sys.path.insert(0, str(SCRIPTS))
+        cls.initializer = load_module("init_audit")
+
+    def test_project_root_is_required(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "out" / "audit-manifest.json"
+            with self.assertRaises(SystemExit):
+                self.initializer.main([str(output)])
+
+    def test_rejects_output_inside_project_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project_root = Path(directory) / "meu-projeto"
+            project_root.mkdir()
+            output = project_root / "qa-results" / "audit-manifest.json"
+            with self.assertRaises(SystemExit):
+                self.initializer.main([str(output), "--project-root", str(project_root)])
+            self.assertFalse(output.exists())
+
+    def test_accepts_output_outside_project_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project_root = Path(directory) / "meu-projeto"
+            project_root.mkdir()
+            output = Path(directory) / "qa-results" / "audit-manifest.json"
+            code = self.initializer.main([str(output), "--project-root", str(project_root)])
+            self.assertEqual(code, 0)
+            self.assertTrue(output.is_file())
 
 
 if __name__ == "__main__":

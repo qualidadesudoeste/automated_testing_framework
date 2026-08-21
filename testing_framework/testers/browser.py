@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import time
 from pathlib import Path
 from typing import Any
 
+from ..assertions import resolve_placeholder
 from ..http import target_url
 from ..models import Finding, SuiteResult
 from ..validators import profile_cases
@@ -195,6 +195,10 @@ class BrowserTester:
             truncated = locator.evaluate("element => element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight")
             if truncated:
                 raise AssertionError("Conteúdo está cortado ou truncado")
+        elif kind == "assert_loading_state":
+            self._assert_loading_state(page, action)
+        elif kind == "assert_unsaved_changes_warning":
+            self._assert_unsaved_changes_warning(page, action)
         elif kind == "measure_navigation":
             started = time.perf_counter()
             page.goto(target_url(self.config["target"]["base_url"], str(action.get("path", "/"))), wait_until=action.get("wait_until", "networkidle"))
@@ -222,6 +226,11 @@ class BrowserTester:
             expected_valid = bool(case.get("valid", True))
             if actual_valid != expected_valid:
                 raise AssertionError(f"Campo {action['selector']} aceitou/rejeitou incorretamente {value!r}")
+            error_contains = case.get("error_contains")
+            if error_contains and error_visible:
+                actual_error = page.locator(case["error_selector"]).inner_text()
+                if str(error_contains) not in actual_error:
+                    raise AssertionError(f"Mensagem de erro não explica o problema: esperado conter {error_contains!r}, obtido {actual_error!r}")
             pattern = case.get("masked_pattern")
             if pattern and re.fullmatch(str(pattern), locator.input_value()) is None:
                 raise AssertionError(f"Máscara incorreta para {value!r}: {locator.input_value()!r}")
@@ -229,6 +238,40 @@ class BrowserTester:
             actual_max = locator.get_attribute("maxlength")
             if actual_max != str(action["max_length"]):
                 raise AssertionError(f"maxlength esperado {action['max_length']}; obtido {actual_max}")
+
+    def _assert_loading_state(self, page: Any, action: dict[str, Any]) -> None:
+        """Nielsen H1 — visibilidade do status do sistema.
+
+        Aciona uma ação e confirma que um indicador de carregamento aparece dentro de
+        ``appear_timeout`` (prova que existe feedback) e depois desaparece dentro de
+        ``resolve_timeout`` (prova que o feedback não fica "preso" indefinidamente).
+        """
+        loading = page.locator(action["loading_selector"])
+        page.locator(action["trigger_selector"]).click()
+        try:
+            loading.wait_for(state="visible", timeout=action.get("appear_timeout", 2000))
+        except Exception as exc:
+            raise AssertionError(f"Indicador de carregamento {action['loading_selector']!r} não apareceu após a ação") from exc
+        try:
+            loading.wait_for(state="hidden", timeout=action.get("resolve_timeout", 5000))
+        except Exception as exc:
+            raise AssertionError(f"Indicador de carregamento {action['loading_selector']!r} permaneceu visível além do esperado") from exc
+
+    def _assert_unsaved_changes_warning(self, page: Any, action: dict[str, Any]) -> None:
+        """Nielsen H3 — controle e liberdade do usuário (aviso ao sair com dados não salvos)."""
+        page.locator(action["fill_selector"]).fill(self._value(action.get("fill_value", "teste")))
+        warning_selector = action.get("warning_selector")
+        if warning_selector:
+            page.locator(action["navigate_selector"]).click()
+            if not page.locator(warning_selector).is_visible():
+                raise AssertionError("Aviso de alterações não salvas não apareceu ao tentar navegar/cancelar")
+            return
+        try:
+            with page.expect_dialog(timeout=action.get("timeout", 3000)) as dialog_info:
+                page.locator(action["navigate_selector"]).click()
+            dialog_info.value.dismiss()
+        except Exception as exc:
+            raise AssertionError("Nenhum diálogo nativo de confirmação (beforeunload) apareceu ao sair com alterações não salvas") from exc
 
     def _capture_visual(self, page: Any, engine: str, name: str, index: int, action: dict[str, Any], result: SuiteResult) -> None:
         actual = self.evidence_dir / f"{name}-{engine}-{index}.png"
@@ -262,6 +305,16 @@ class BrowserTester:
     def _run_axe(self, page: Any, engine: str, name: str, result: SuiteResult) -> None:
         axe_script = self.browser_config.get("axe_script")
         if not axe_script:
+            if self.browser_config.get("warn_on_missing_axe", True):
+                result.findings.append(Finding(
+                    category="framework",
+                    title="Auditoria de acessibilidade automática (axe-core) não configurada",
+                    description="browser.axe_script não foi definido; nenhuma verificação de contraste/ARIA foi executada nesta jornada.",
+                    severity="info",
+                    confidence="high",
+                    recommendation="Configure browser.axe_script apontando para um axe.min.js local para habilitar a checagem.",
+                    metadata={"engine": engine, "journey": name},
+                ))
             return
         path = Path(str(axe_script)).resolve()
         if not path.is_file():
@@ -285,13 +338,7 @@ class BrowserTester:
 
     @staticmethod
     def _value(raw: Any) -> str:
-        value = str(raw)
-        if value.startswith("${") and value.endswith("}"):
-            name = value[2:-1]
-            if name not in os.environ:
-                raise ValueError(f"Variável de ambiente obrigatória ausente: {name}")
-            return os.environ[name]
-        return value
+        return resolve_placeholder(raw)
 
 
 def compare_images(baseline: Path, actual: Path, diff_path: Path) -> tuple[float, Path]:

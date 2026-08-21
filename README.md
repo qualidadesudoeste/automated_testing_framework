@@ -14,7 +14,8 @@ Framework Python e pacotes portáteis de automação para planejar, executar e r
 | `project_quality` | Sintaxe, modularidade, testes, documentação, cobertura, OpenAPI, arquivos obrigatórios e indícios de autoria automatizada |
 | `external_tools` | Semgrep, Gitleaks, Trivy, Lighthouse, k6 e ZAP com comandos allowlisted |
 | `performance` | Carga, stress, spike, percentis, erro, throughput e thresholds |
-| `security` | Headers, TLS, CORS, injeções, autenticação, rate limiting e portas, conforme configuração |
+| `security` | Headers, TLS, CORS, injeções (query string e corpo JSON), autenticação, rate limiting e portas, conforme configuração |
+| `access_control` | BOLA/IDOR, BFLA e mass assignment (OWASP API Security Top 10: API1, API3, API5) via identidades declarativas |
 
 Todos os resultados são convertidos para um modelo comum, deduplicados e avaliados por quality gate. Os relatórios podem ser gerados em HTML, JSON, texto, JUnit XML e SARIF.
 
@@ -28,6 +29,24 @@ python -m venv .venv
 ```
 
 No Linux ou macOS, usar `.venv/bin/python`.
+
+### Uso em outro projeto (framework instalado como dependência)
+
+O pacote é instalável e expõe o script `software-test`. Para testar um projeto diferente do
+próprio framework, instale o pacote (do wheel embutido nas distribuições de skill, ou do
+diretório do framework) e aponte para um config fora deste repositório usando caminho absoluto:
+
+```bash
+python -m pip install automated_testing_framework/qa-master-testing/assets/automated_software_testing_framework-*.whl
+software-test -c /caminho/absoluto/para/meu-projeto/config.yaml --dry-run
+```
+
+Copie `examples/config.template.yaml` como ponto de partida do config do projeto-alvo. Caminhos
+relativos dentro do YAML (`project_root`, `spec`, `evidence_dir`) resolvem a partir do diretório
+do próprio arquivo de configuração — não do diretório onde `software-test` foi invocado. A única
+exceção é `reporting.output_dir`, que por padrão resolve relativo ao diretório de trabalho do
+processo (`output_dir_base: "cwd"`); defina `reporting.output_dir_base: "config"` para gravar os
+relatórios ao lado do config, independentemente de onde o comando foi executado.
 
 Para jornadas reais de navegador e comparação visual:
 
@@ -67,7 +86,7 @@ Chamadas mutantes, concorrência, navegador, carga e segurança exigem `--author
 
 ## Política de segurança
 
-O arquivo padrão aponta para `127.0.0.1`. Alvos externos são bloqueados por padrão. As suítes `browser`, `performance` e `security` são consideradas ativas e exigem `--authorized` quando a política padrão estiver habilitada.
+O arquivo padrão aponta para `127.0.0.1`. Alvos externos são bloqueados por padrão. Endereços link-local (inclusive o metadata IP de nuvem `169.254.169.254`) são tratados como externos, não como privados — mitigação a SSRF para roubo de credenciais de nuvem — e exigem `safety.allow_external_targets`, não apenas `--authorized`. As suítes `browser`, `performance`, `security` e `access_control` são consideradas ativas e exigem `--authorized` quando a política padrão estiver habilitada.
 
 Antes de testar staging ou outro alvo autorizado:
 
@@ -110,6 +129,54 @@ business_rules:
 
 Operadores suportados: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `not_contains`, `is_true`, `is_false`, `exists`, `matches`, `starts_with`, `ends_with`, `between`, `length_eq`, `is_null`, `not_null`, `sorted_asc`, `sorted_desc` e `unique`.
 
+Exemplo de controle de acesso declarativo (OWASP API Security Top 10 — API1 BOLA/IDOR, API3 mass assignment, API5 BFLA). Suíte sempre ativa: exige `--authorized`.
+
+```yaml
+access_control:
+  enabled: true
+  identities:
+    victim:
+      headers: {Authorization: "Bearer ${VICTIM_TOKEN}"}
+    attacker:
+      headers: {Authorization: "Bearer ${ATTACKER_TOKEN}"}
+  bola_checks:
+    - id: "BOLA-ORDER-001"
+      path: "/api/orders/{id}"
+      id_placeholder: "{id}"
+      owner_resource_id: "12345"
+      owner_identity: victim
+      other_identity: attacker
+      expect_denied_status: [403, 404]
+  bfla_checks:
+    - id: "BFLA-ADMIN-001"
+      path: "/api/admin/users/12345/promote"
+      method: "POST"
+      identity: attacker
+      expect_denied_status: [401, 403]
+  mass_assignment_checks:
+    - id: "MASSASSIGN-USER-001"
+      path: "/api/users/12345"
+      method: "PATCH"
+      identity: victim
+      json: {name: "Ana", role: "admin"}
+      forbidden_expected_values: {role: "admin"}
+```
+
+Opções adicionais de `security` (todas opt-in, ausentes por padrão): `injection_tests.json_fields` envia os mesmos payloads de SQLi/NoSQLi/command injection também no corpo JSON de `target.api_endpoints`; `injection_tests.types` aceita `nosql_injection` além de `command_injection`; `misconfiguration_tests.enabled` habilita a checagem de arquivos sensíveis expostos (`.env`, `.git/HEAD` etc.) e de métodos HTTP permissivos (`TRACE`/`CONNECT`). O teto de requisições por sondagem (rate limiting e loops de payload) é configurável em `safety.max_requests_per_probe` (padrão 50).
+
+Exemplo de limite de recursos em API (`api.endpoints[].assert_resource_limits`, OWASP API4:2023):
+
+```yaml
+api:
+  endpoints:
+    - path: /api/customers
+      assert_resource_limits:
+        page_size_param: limit
+        oversized_value: 100000
+        items_path: items
+        max_allowed_items: 200
+```
+
 Exemplo de filtro, ordenação, paginação e SLA de API:
 
 ```yaml
@@ -144,7 +211,7 @@ browser:
         - action: screenshot
 ```
 
-Para formulários, as jornadas também aceitam `validate_field` (perfis `cpf`, `cnpj`, `numeric` e `required`), `assert_required`, `assert_disabled`, `assert_radio_exclusive`, `assert_clear`, `assert_sorted`, `assert_persistence`, `assert_tab_order`, `assert_not_truncated`, `upload`, `download`, `assert_confirmation` e `measure_navigation`.
+Para formulários, as jornadas também aceitam `validate_field` (perfis `cpf`, `cnpj`, `numeric` e `required`, com `error_contains` opcional por caso para checar o conteúdo — não só a visibilidade — da mensagem de erro), `assert_required`, `assert_disabled`, `assert_radio_exclusive`, `assert_clear`, `assert_sorted`, `assert_persistence`, `assert_tab_order`, `assert_not_truncated`, `upload`, `download`, `assert_confirmation`, `assert_loading_state` (indicador de carregamento aparece e depois desaparece), `assert_unsaved_changes_warning` (aviso nativo ou modal ao sair com dados não salvos) e `measure_navigation`.
 
 O framework não expande segredos automaticamente. Injete credenciais por uma camada segura ou gere o YAML temporário no pipeline sem versioná-lo.
 
@@ -171,21 +238,22 @@ A pasta `software-testing/` contém uma skill autocontida para ambientes que exe
 
 A pasta `qa-master-testing/` contém a distribuição multiagente: uma skill coordenadora e 13 skills especialistas reais para ambientes capazes de iniciar agentes auxiliares e aguardar seus resultados.
 
-As duas distribuições carregam o mesmo framework determinístico em `assets/` e executam as mesmas nove suítes. A distribuição multiagente é canônica quando o ambiente suporta agentes auxiliares; a distribuição de agente único é a alternativa universal.
+As duas distribuições carregam o mesmo framework determinístico em `assets/` e executam as mesmas dez suítes. A distribuição multiagente é canônica quando o ambiente suporta agentes auxiliares; a distribuição de agente único é a alternativa universal.
 
 ## Pacote multiagente QA Mestre
 
-O manifesto neutro fica em `plugin/plugin.json`. O pacote contém uma skill `qa-master` e 13 skills especialistas reais. Os dois prompts-fonte completos são referências normativas, com matriz de rastreabilidade para que nenhuma regra seja perdida durante a reorganização. O QA Mestre cria os subagentes, espera cada resultado, verifica modos, controles, 25 dimensões, 24 testes adversariais, proveniência do código e nove suítes, e só então chama `qa-consolidator`. A ausência de qualquer agente ou obrigação bloqueia a conclusão.
+O manifesto neutro fica em `plugin/plugin.json`. O pacote contém uma skill `qa-master` e 13 skills especialistas reais. Os dois prompts-fonte completos são referências normativas, com matriz de rastreabilidade para que nenhuma regra seja perdida durante a reorganização. O QA Mestre cria os subagentes, espera cada resultado, verifica modos, controles, 25 dimensões, 24 testes adversariais, proveniência do código e dez suítes, e só então chama `qa-consolidator`. A ausência de qualquer agente ou obrigação bloqueia a conclusão.
 
-Inicializar e validar o contrato de uma auditoria completa:
+Inicializar e validar o contrato de uma auditoria completa. `<run-dir>` deve ficar **fora** do
+projeto-alvo — `--project-root` é obrigatório e o script recusa qualquer `<run-dir>` dentro dele:
 
 ```bash
-python qa-master-testing/scripts/init_run.py qa-results/execucao
-python qa-master-testing/scripts/check_run.py qa-results/execucao
-python qa-master-testing/scripts/check_run.py qa-results/execucao --final
+python qa-master-testing/scripts/init_run.py ../qa-results/execucao --project-root <projeto-alvo>
+python qa-master-testing/scripts/check_run.py ../qa-results/execucao
+python qa-master-testing/scripts/check_run.py ../qa-results/execucao --final
 ```
 
-O validador exige resultados reais dos 13 agentes, cobertura das nove suítes, 25 dimensões, 24 testes adversariais e todos os entregáveis.
+O validador exige resultados reais dos 13 agentes, cobertura das dez suítes, 25 dimensões, 24 testes adversariais e todos os entregáveis.
 
 Validar o pacote multiagente:
 
@@ -211,8 +279,11 @@ Os artefatos em `reports/` e caches Python são ignorados pelo controle de vers�
 
 ## Limitações conhecidas
 
-- A auditoria `web_quality` é estrutural; contraste calculado e testes completos de teclado exigem Playwright/axe.
+- A auditoria `web_quality` é estrutural; contraste calculado e testes completos de teclado exigem Playwright/axe. Se `browser.axe_script` não estiver configurado, a jornada emite um achado `info` avisando que nenhuma checagem de contraste/ARIA rodou (desative com `browser.warn_on_missing_axe: false`).
 - Achados do módulo dinâmico de segurança são marcados como suspeitos até confirmação.
 - Performance de frontend e Core Web Vitals devem ser complementados com Lighthouse.
 - Observabilidade de servidor depende de integração com a plataforma do ambiente-alvo.
 - Conformidade com protótipo, ortografia sem glossário, experiência subjetiva e LGPD sem requisitos jurídicos continuam exigindo baseline ou revisão humana.
+- Heurísticas de Nielsen "flexibilidade e eficiência de uso" (atalhos, ações em massa) e "ajuda e documentação" permanecem revisão manual — automação nesses eixos gera mais ruído do que sinal.
+- Pinning completo de IP contra DNS rebinding não é implementado (risco de quebrar alvos atrás de CDN); a suíte ativa revalida a resolução do alvo antes de cada suíte (mitigação parcial), não a cada requisição individual.
+- SSRF contra o alvo (enviar URL/webhook e detectar busca de endereço interno), SQLi cego/baseado em tempo, session fixation, `JWT alg:none`, directory listing e descoberta de endpoints não documentados (shadow APIs) ainda não são cobertos — candidatos ao próximo incremento de `security`/`access_control`.

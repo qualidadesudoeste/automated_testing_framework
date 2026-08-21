@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "automated-software-testing-framework"
-version = "2.0.0"
+version = "2.1.0"
 description = "Testes automatizados de API, regras, interface, UI/UX, performance e segurança"
 requires-python = ">=3.10"
 dependencies = [

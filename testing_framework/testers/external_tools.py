@@ -20,7 +20,7 @@ class ExternalToolsTester:
         self.tool_config = config.get("external_tools", {})
         self.timeout = int(self.tool_config.get("timeout", 600))
         config_path = Path(config.get("_config_path", ".")).resolve()
-        project_raw = Path(str(self.tool_config.get("project_root", config_path.parent.parent)))
+        project_raw = Path(str(self.tool_config.get("project_root", config_path.parent)))
         self.project_root = (config_path.parent / project_raw).resolve() if not project_raw.is_absolute() else project_raw.resolve()
         evidence_raw = Path(str(self.tool_config.get("evidence_dir", "reports/tools")))
         self.evidence_dir = (self.project_root / evidence_raw).resolve() if not evidence_raw.is_absolute() else evidence_raw.resolve()

@@ -31,7 +31,9 @@ Durante auditoria, não alterar o produto. Incluir solução técnica ou trecho 
 
 ## Artefatos obrigatórios
 
-Produzir no diretório de saída:
+O diretório de saída fica **sempre fora do repositório do projeto auditado** — nunca na raiz nem
+em subpastas do projeto-alvo, e nunca versionado junto com o código testado (`init_run.py` exige
+`--project-root` e recusa qualquer `<run-dir>` dentro dele). Produzir no diretório de saída:
 
 1. `EXECUTIVE_REPORT.md`: veredito `release`, `release_with_caveats` ou `do_not_release`, três maiores riscos, placar, top 10 e menor conjunto de correções para tornar o processo operável.
 2. `FINDINGS.json` e `FINDINGS.csv`: achados deduplicados, UTF-8; CSV para Excel pt-BR usa `;` e BOM.

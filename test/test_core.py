@@ -32,6 +32,14 @@ class CoreTests(unittest.TestCase):
         self.assertNotIn("xyz", text)
         self.assertEqual(text.count("[REDACTED]"), 3)
 
+    def test_redacts_free_text_credential_pairs(self):
+        text = redact_text("O sistema aceita credenciais fracas: admin/password")
+        self.assertNotIn("admin/password", text)
+        self.assertIn("[REDACTED]", text)
+        text = redact_text("Login bem-sucedido com admin/password")
+        self.assertNotIn("admin/password", text)
+        self.assertIn("[REDACTED]", text)
+
 
 if __name__ == "__main__":
     unittest.main()

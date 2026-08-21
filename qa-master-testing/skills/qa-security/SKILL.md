@@ -12,13 +12,13 @@ Executar análise passiva sempre. Exigir autorização formal para DAST, injeç�
 ## Verificar
 
 - Senhas, MFA, rate limit, enumeração, recovery, fixation, timeout, logout e cookies.
-- IDOR/BOLA, escalada horizontal/vertical, policies, escopo, mass assignment, exportação, download e webhook.
+- IDOR/BOLA, escalada horizontal/vertical, policies, escopo, mass assignment, exportação, download e webhook. Configurar `access_control.bola_checks`/`bfla_checks`/`mass_assignment_checks` (identidades com tokens distintos) para a parte automatizável; o restante permanece verificação manual/dinâmica.
 - SQLi, XSS, fórmula CSV, command/SSTI/LDAP/XXE, redirect, desserialização e SSRF.
 - Upload por magic bytes, allowlist, tamanho, traversal, webroot, SVG/PDF ativo, ZIP bomb e quarentena.
 - Debug, arquivos sensíveis, segredos, TLS, CSP, HSTS, frame, nosniff, referrer, permissions, CORS e CSRF.
 - Dependências, containers e IaC; logs e evidências sem segredos ou PII.
 - Logout/voltar, cache de dado pessoal, token antigo, sessão longa e rota direta com perfil restrito.
-- Executar `security` e Semgrep/Gitleaks/Trivy/ZAP de `external_tools` após `--dry-run`; confirmar achado heurístico crítico.
+- Executar `security`, `access_control` e Semgrep/Gitleaks/Trivy/ZAP de `external_tools` após `--dry-run`; confirmar achado heurístico crítico.
 
 ## Entregar
 

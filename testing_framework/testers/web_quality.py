@@ -6,7 +6,7 @@ from html.parser import HTMLParser
 from typing import Any
 import requests
 
-from ..http import create_session, target_url
+from ..http import assert_same_origin_response, create_session, target_url
 from ..models import Finding, SuiteResult
 
 
@@ -103,9 +103,13 @@ class WebQualityTester:
             return
         try:
             response = self.session.get(url, timeout=self.timeout)
+            assert_same_origin_response(self.config["target"]["base_url"], response)
             response.raise_for_status()
         except requests.RequestException as exc:
             result.findings.append(Finding("ui", f"Página inacessível: {endpoint}", "A página não pôde ser auditada.", "high", "high", location=url, observed=str(exc)))
+            return
+        except ValueError as exc:
+            result.findings.append(Finding("framework", f"Redirecionamento cross-origin não autorizado em {endpoint}", "A resposta saiu da origem autorizada durante um redirecionamento.", "high", "high", location=url, observed=str(exc)))
             return
         parser = PageAuditParser()
         parser.feed(response.text)
@@ -119,6 +123,9 @@ class WebQualityTester:
         checks.append((bool(unlabeled), "accessibility", "Campos de formulário sem rótulo", f"Associar labels aos {len(unlabeled)} campos identificados.", "high", "WCAG 3.3.2"))
         heading_jump = any(current - previous > 1 for previous, current in zip(parser.headings, parser.headings[1:]))
         checks.append((heading_jump, "ux-structure", "Hierarquia de títulos inconsistente", "Evitar saltos de nível na hierarquia de headings.", "low", "WCAG 1.3.1"))
+        h1_count = parser.headings.count(1)
+        checks.append((h1_count == 0, "ux-structure", "Página sem H1", "Adicionar um único <h1> descritivo por página.", "medium", "WCAG 1.3.1"))
+        checks.append((h1_count > 1, "ux-structure", "Página com múltiplos H1", "Manter apenas um <h1> por página; usar <h2>+ para subseções.", "low", "WCAG 1.3.1"))
         required_without_indicator = [field_id for field_id in parser.required_ids if field_id and "*" not in parser.labels.get(field_id, "")]
         checks.append((bool(required_without_indicator), "ux-form", "Campos obrigatórios sem indicação visual", f"Indicar visualmente os {len(required_without_indicator)} campos obrigatórios, sem depender apenas do asterisco para acessibilidade.", "low", "WCAG 3.3.2"))
         boolean_questions = [field_id for field_id in parser.boolean_ids if "?" in parser.labels.get(field_id, "")]

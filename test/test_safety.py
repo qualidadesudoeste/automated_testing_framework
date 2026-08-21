@@ -1,6 +1,14 @@
 import unittest
+from unittest.mock import patch
 
-from testing_framework.safety import SafetyError, classify_target, has_active_requests, validate_execution
+from testing_framework.safety import (
+    SafetyError,
+    TargetClassification,
+    classify_target,
+    has_active_requests,
+    revalidate_or_raise,
+    validate_execution,
+)
 from testing_framework.http import target_url
 
 
@@ -47,6 +55,33 @@ class SafetyTests(unittest.TestCase):
         self.assertTrue(has_active_requests(config, ["api"]))
         with self.assertRaises(SafetyError):
             validate_execution(config, ["api"], authorized=False, dry_run=False)
+
+    def test_link_local_target_is_classified_external(self):
+        # Inclui o metadata IP de nuvem (169.254.169.254): tratar como "private" bastaria
+        # com --authorized; precisa exigir allow_external_targets, o nível mais alto.
+        with patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("169.254.169.254", 0))]):
+            self.assertEqual(classify_target("http://metadata.internal").scope, "external")
+
+    def test_link_local_target_is_blocked_without_allow_external_targets(self):
+        config = base_config("http://metadata.internal")
+        with patch("socket.getaddrinfo", return_value=[(None, None, None, None, ("169.254.169.254", 0))]):
+            with self.assertRaises(SafetyError):
+                validate_execution(config, ["security"], authorized=True, dry_run=False)
+
+    def test_revalidate_or_raise_ignores_passive_suites(self):
+        classification = TargetClassification("127.0.0.1", "local", ["127.0.0.1"])
+        revalidate_or_raise(base_config(), classification, "api")  # não deve levantar
+
+    def test_revalidate_or_raise_blocks_on_dns_rebinding(self):
+        classification = TargetClassification("127.0.0.1", "local", ["127.0.0.1"])
+        with patch("testing_framework.safety.classify_target", return_value=TargetClassification("127.0.0.1", "external", ["203.0.113.5"])):
+            with self.assertRaises(SafetyError):
+                revalidate_or_raise(base_config(), classification, "security")
+
+    def test_revalidate_or_raise_allows_stable_resolution(self):
+        classification = TargetClassification("127.0.0.1", "local", ["127.0.0.1"])
+        with patch("testing_framework.safety.classify_target", return_value=classification):
+            revalidate_or_raise(base_config(), classification, "security")  # não deve levantar
 
 
 if __name__ == "__main__":

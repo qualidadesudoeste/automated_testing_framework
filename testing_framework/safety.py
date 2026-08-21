@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-ACTIVE_SUITES = {"browser", "external_tools", "performance", "security"}
+ACTIVE_SUITES = {"browser", "external_tools", "performance", "security", "access_control"}
 
 
 class SafetyError(RuntimeError):
@@ -35,7 +35,18 @@ def classify_target(base_url: str) -> TargetClassification:
     scopes = []
     for address in addresses:
         ip = ipaddress.ip_address(address)
-        scopes.append("local" if ip.is_loopback else "private" if ip.is_private else "external")
+        # Link-local (inclui o metadata IP de nuvem 169.254.169.254 e fe80::/10) é reportado
+        # como is_private=True pelo módulo ipaddress, mas expor esse endereço a testes ativos
+        # é um vetor real de SSRF para roubo de credenciais de nuvem — deve exigir o mesmo
+        # nível de autorização que um alvo externo, não o nível mais brando de "privado".
+        if ip.is_loopback:
+            scopes.append("local")
+        elif ip.is_link_local:
+            scopes.append("external")
+        elif ip.is_private:
+            scopes.append("private")
+        else:
+            scopes.append("external")
     scope = "external" if "external" in scopes else "private" if "private" in scopes else "local"
     return TargetClassification(host, scope, addresses)
 
@@ -76,6 +87,27 @@ def validate_execution(
     if any(value and int(value) > max_duration for value in duration_values):
         raise SafetyError(f"Uma duração excede safety.max_duration_seconds={max_duration}")
     return classification
+
+
+def revalidate_or_raise(config: dict[str, Any], classification: TargetClassification, suite: str) -> None:
+    """Mitigação parcial de TOCTOU de DNS rebinding.
+
+    ``classify_target`` roda uma única vez, no início da CLI. Toda chamada HTTP real feita
+    depois disso resolve o hostname de novo através do resolvedor do sistema operacional, sem
+    nada fixando o endereço validado — uma janela em que o DNS poderia "rebindar" para um
+    endereço interno depois que o alvo foi aprovado como externo/privado. Não elimina a janela
+    (isso exigiria pinning de IP na conexão), mas a estreita: reclassifica o alvo imediatamente
+    antes de despachar cada suíte ativa e bloqueia se o escopo mudou desde a validação inicial.
+    """
+    if suite not in ACTIVE_SUITES:
+        return
+    current = classify_target(config["target"]["base_url"])
+    if current.scope != classification.scope or set(current.addresses) != set(classification.addresses):
+        raise SafetyError(
+            f"Resolução do alvo mudou entre a validação inicial e a suíte {suite} "
+            f"({classification.scope}:{classification.addresses} -> {current.scope}:{current.addresses}); "
+            "possível DNS rebinding. Execução bloqueada."
+        )
 
 
 def has_active_requests(config: dict[str, Any], suites: list[str]) -> bool:

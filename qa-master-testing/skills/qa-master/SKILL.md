@@ -32,7 +32,7 @@ Tratar [prompt-qa-master-complete.md](references/prompt-qa-master-complete.md) e
 1. Reunir todos os campos de entrada das duas fontes: projeto/URL, finalidade, stack, escopo, perfis, dados sensíveis, criticidade, público, obrigações, ambiente, artefatos, prazo, contexto de negócio, documentos, entidades, fora de escopo, credenciais seguras e autorização. Registrar lacunas como `SUP-XX` ou bloqueios; nunca inventar requisito.
 2. Selecionar o eixo de superfície A–D e a profundidade rápido/padrão/profundo. Usar todas as superfícies disponíveis e `PROFUNDO` por padrão. Reduzir somente por pedido explícito e nunca rotular execução reduzida como auditoria completa.
 3. Ler [safety.md](references/safety.md), [quality-catalog.md](references/quality-catalog.md), [business-taxonomy.md](references/business-taxonomy.md), [acceptance-catalog.md](references/acceptance-catalog.md), [coverage-routing.md](references/coverage-routing.md), [source-traceability.md](references/source-traceability.md) e [deliverables.md](references/deliverables.md). Distribuir todas as obrigações conforme o roteamento.
-4. Resolver a raiz do plugin e criar a execução com `python <plugin-root>/scripts/init_run.py <run-dir> --surface <auto|A|B|C|D> --depth <rapido|padrao|profundo>`.
+4. Resolver a raiz do plugin e criar a execução **sempre em `<run-dir>` fora do projeto-alvo** (pasta temporária do sistema ou diretório irmão do projeto — nunca dentro do repositório auditado nem versionado junto com ele): `python <plugin-root>/scripts/init_run.py <run-dir> --project-root <projeto> --surface <auto|A|B|C|D> --depth <rapido|padrao|profundo>`. `--project-root` é obrigatório e o script recusa qualquer `<run-dir>` dentro dele.
 5. Reaproveitar mapa anterior somente após verificar ausência de mudança estrutural; caso contrário, disparar `$qa-system-mapper` sozinho e esperar suas saídas.
 6. Disparar `$qa-business`, `$qa-functional`, `$qa-api` e `$qa-code-quality` como subagentes independentes. Esperar todos.
 7. Se a primeira onda revelar mais de 30 críticos/bloqueantes, acionar o gate de imaturidade: interromper aprofundamento ativo/caro, mas ainda chamar os especialistas restantes para triagem e registro de bloqueios.
@@ -70,4 +70,4 @@ Incluir em cada tarefa de especialista:
 
 ## Framework determinístico
 
-Os especialistas funcionais e técnicos devem usar `python <plugin-root>/scripts/run_framework.py` com as suítes sob sua responsabilidade. Sempre executar `--dry-run` primeiro. `--authorized` só pode ser usado com autorização explícita e escopo controlado.
+Os especialistas funcionais e técnicos devem usar `python <plugin-root>/scripts/run_framework.py` com as suítes sob sua responsabilidade. Sempre executar `--dry-run` primeiro. `--authorized` só pode ser usado com autorização explícita e escopo controlado. Copiar `<plugin-root>/assets/config.template.yaml` para o projeto-alvo como ponto de partida do YAML, em vez de escrevê-lo de memória.

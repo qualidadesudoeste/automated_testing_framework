@@ -14,6 +14,7 @@ ALL_AGENTS = [*SPECIALISTS, CONSOLIDATOR]
 SUITES = [
     "api", "openapi", "business_rules", "web_quality", "browser",
     "project_quality", "external_tools", "performance", "security",
+    "access_control",
 ]
 
 DIMENSIONS = [f"D{index:02d}" for index in range(1, 26)]

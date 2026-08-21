@@ -14,6 +14,8 @@ REDACTION_PATTERNS = [
     re.compile(r"(?i)(authorization\s*:\s*bearer\s+)[^\s,;]+"),
     re.compile(r"(?i)([\"']?(?:password|passwd|token|api[_-]?key|secret)[\"']?\s*[:=]\s*[\"']?)[^\"'\s,;}]+"),
     re.compile(r"(?i)(set-cookie\s*:\s*)[^\r\n]+"),
+    # Pares usuário/senha citados em prosa (ex.: achados de credenciais fracas do próprio framework).
+    re.compile(r"(?i)((?:credencia(?:l|is)|login\s+bem-sucedido)[^:=\n]{0,30}(?:com|:)\s*)([^\s,;]+/[^\s,;]+)"),
 ]
 
 

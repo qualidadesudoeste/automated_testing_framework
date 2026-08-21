@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from testing_framework.config import load_config, selected_suites
 from testing_framework.orchestrator import Orchestrator
@@ -21,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--suite",
         action="append",
-        choices=["api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security"],
+        choices=["api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security", "access_control"],
         help="Executar somente uma suíte; repetir a opção para combinar suítes",
     )
     parser.add_argument("--dry-run", action="store_true", help="Validar e mostrar o plano sem acessar o alvo")
@@ -43,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     args = build_parser().parse_args(argv)
     if args.list_suites:
-        print("api\nopenapi\nbusiness_rules\nweb_quality\nbrowser\nproject_quality\nexternal_tools\nperformance\nsecurity")
+        print("api\nopenapi\nbusiness_rules\nweb_quality\nbrowser\nproject_quality\nexternal_tools\nperformance\nsecurity\naccess_control")
         return 0
     try:
         config = load_config(args.config)
@@ -71,11 +72,14 @@ def main(argv: list[str] | None = None) -> int:
         print("Nenhuma suíte habilitada.", file=sys.stderr)
         return 1
 
-    report = Orchestrator(config).run(suites)
+    report = Orchestrator(config, classification=target).run(suites)
     generated: list[str] = []
     if not args.no_report:
         reporting = config.get("reporting", {})
-        reporter = UnifiedReporter(args.output or reporting.get("output_dir", "./reports"))
+        output_dir = args.output or reporting.get("output_dir", "./reports")
+        if reporting.get("output_dir_base", "cwd") == "config" and not Path(output_dir).is_absolute():
+            output_dir = str(Path(config["_config_path"]).parent / output_dir)
+        reporter = UnifiedReporter(output_dir)
         generated = reporter.generate(report, reporting.get("formats", ["html", "json"]))
 
     summary = report.to_dict()["summary"]

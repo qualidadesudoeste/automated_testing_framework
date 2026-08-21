@@ -1,2 +1,0 @@
-"""Utilitários legados do framework."""
-

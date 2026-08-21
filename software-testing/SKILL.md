@@ -12,7 +12,7 @@ Atuar como o único agente visível e responsável por toda a auditoria. Executa
 1. Executar os 13 papéis descritos em [qa-orchestration.md](references/qa-orchestration.md). Usar agentes paralelos quando disponíveis; caso contrário, assumir cada papel sequencialmente. Não reduzir cobertura por falta de paralelismo.
 2. Avaliar as 25 dimensões e os 24 testes adversariais de [quality-catalog.md](references/quality-catalog.md).
 3. Aplicar a taxonomia funcional de [business-taxonomy.md](references/business-taxonomy.md) e o catálogo detalhado de [acceptance-catalog.md](references/acceptance-catalog.md).
-4. Executar todas as nove suítes aplicáveis do framework: `api`, `openapi`, `business_rules`, `web_quality`, `browser`, `project_quality`, `external_tools`, `performance` e `security`.
+4. Executar todas as dez suítes aplicáveis do framework: `api`, `openapi`, `business_rules`, `web_quality`, `browser`, `project_quality`, `external_tools`, `performance`, `security` e `access_control`.
 5. Manter habilitada em `project_quality` a auditoria de proveniência do código. Procurar declarações explícitas, trailers de coautoria e arquivos de configuração de assistentes; registrar cada ocorrência como indício contextual, nunca como prova de autoria.
 6. Executar e registrar os 13 papéis como `complete`, mesmo quando concluírem que um domínio não se aplica. Para suítes, dimensões e testes concretos, usar `complete`, `blocked` ou `not_applicable`; exigir evidência para `complete` e justificativa para os demais.
 7. Não encerrar antes de validar o manifesto da auditoria.
@@ -30,16 +30,18 @@ Atuar como o único agente visível e responsável por toda a auditoria. Executa
 
 1. Reunir escopo, finalidade, stack, perfis, dados sensíveis, criticidade, ambiente, requisitos, protótipo e restrições. Quando faltar contexto, registrar suposições `SUP-XX` e continuar somente com premissas seguras.
 2. Ler [safety.md](references/safety.md), classificar o alvo e separar análise somente leitura de testes ativos. Nunca inferir autorização para carga, scan, injeção, força bruta ou alteração de dados.
-3. Criar o manifesto:
+3. Criar o manifesto **sempre em um diretório fora do projeto-alvo** (pasta temporária do sistema
+   ou diretório irmão do projeto — nunca dentro do repositório auditado nem versionado junto com
+   ele). `--project-root` é obrigatório e o script recusa qualquer saída dentro dele:
 
    ```bash
-   python scripts/init_audit.py <diretorio-de-saida>/audit-manifest.json
+   python scripts/init_audit.py <diretorio-de-saida-fora-do-projeto>/audit-manifest.json --project-root <projeto>
    ```
 
 4. Executar descoberta estrutural com `python scripts/discover_project.py <projeto>` e produzir o mapa do sistema antes das análises especializadas.
 5. Percorrer as cinco ondas de [qa-orchestration.md](references/qa-orchestration.md). Reaproveitar o mapa; evitar que cada papel faça uma varredura integral duplicada.
 6. Derivar casos positivos, negativos, limites, partições, tabelas de decisão, transições, concorrência, idempotência, permissões e jornadas críticas.
-7. Gerar ou revisar o YAML do framework. Injetar segredos apenas por mecanismo seguro; nunca gravá-los no plano ou nas evidências.
+7. Copiar `assets/config.template.yaml` para o projeto-alvo e ajustar `target`, endpoints e suítes a partir dele — não escrever o YAML de memória. Injetar segredos apenas por mecanismo seguro; nunca gravá-los no plano ou nas evidências.
 8. Executar primeiro:
 
    ```bash

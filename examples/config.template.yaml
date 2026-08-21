@@ -1,0 +1,112 @@
+# Template mínimo de configuração do framework.
+# Copie este arquivo para o projeto-alvo (ex.: config.yaml na raiz do projeto) e ajuste os valores.
+# Todas as seções são opcionais além de `target`; suítes não habilitadas (enabled: false ou ausentes) são ignoradas.
+#
+# Caminhos relativos (project_root, spec, evidence_dir) resolvem a partir do diretório deste arquivo.
+# Se instalar o framework como dependência (pip install) e rodar de outro diretório, prefira
+# `-c /caminho/absoluto/para/este/config.yaml` ou defina reporting.output_dir_base: "config".
+
+target:
+  name: "Nome do projeto-alvo"
+  base_url: "http://127.0.0.1:8000"   # NUNCA aponte para produção sem autorização formal
+  api_endpoints: []
+  web_endpoints: []
+
+safety:
+  allow_external_targets: false        # exigido também para IPs link-local (ex.: 169.254.169.254)
+  require_authorization_for_active_tests: true
+  max_users: 50
+  max_duration_seconds: 300
+  max_requests_per_probe: 50
+
+# --- Suítes passivas (somente leitura; não exigem --authorized) -----------------------------
+
+api:
+  enabled: false
+  endpoints: []
+  # - path: "/api/health"
+  #   method: "GET"
+  #   expected_status: 200
+  #   content_type: "application/json"
+  #   required_json_fields: ["status"]
+
+openapi:
+  enabled: false
+  spec: "./openapi.yaml"
+
+business_rules:
+  enabled: false
+  rules: []
+  # - id: "HEALTH-001"
+  #   endpoint: "/api/health"
+  #   path: "status"
+  #   operator: "eq"
+  #   expected: "healthy"
+  #   severity: "high"
+
+web_quality:
+  enabled: false
+  pages: []
+
+project_quality:
+  enabled: false
+  # project_root: "."          # default: diretório deste config
+  max_file_lines: 600
+  min_documented_ratio: 0.5
+  required_files: []
+  detect_ai_authorship: true
+
+# --- Suítes ativas (exigem --authorized) -----------------------------------------------------
+
+browser:
+  enabled: false
+  headless: true
+  engines: ["chromium"]
+  journeys: []
+
+performance:
+  enabled: false
+  load_test: {enabled: true, users: 5, duration: 10, ramp_up: 2}
+  thresholds: {response_time_p95: 500, error_rate: 0.05}
+
+security:
+  enabled: false
+  web_vulnerabilities:
+    enabled: true
+    tests: ["security_headers", "ssl_tls", "cors"]
+  injection_tests:
+    enabled: false
+    types: []
+  auth_tests:
+    enabled: false
+    tests: []
+  network_scan:
+    enabled: false
+    ports: []
+
+external_tools:
+  enabled: false
+  # project_root: "."
+  tools: []
+
+access_control:
+  enabled: false
+  identities: {}
+  bola_checks: []
+  bfla_checks: []
+  mass_assignment_checks: []
+
+# --- Relatório e governança -------------------------------------------------------------------
+
+quality_gate:
+  fail_on: ["critical", "high"]
+
+reporting:
+  output_dir: "./reports"
+  output_dir_base: "cwd"     # "config" grava relatórios ao lado deste arquivo, não do cwd do processo
+  formats: ["html", "json"]
+
+general:
+  timeout: 15
+  retry_attempts: 0
+  max_workers: 10

@@ -55,10 +55,11 @@ start reports/report_*.html
 
 ### 1. Criar Arquivo de Configuração
 
-Copie o arquivo de exemplo:
+Copie o template genérico (funciona a partir de qualquer diretório, mesmo com o framework
+instalado como dependência de outro projeto — veja "Uso em outro projeto" no `README.md`):
 
 ```bash
-cp config/config.yaml config/meu_sistema.yaml
+cp examples/config.template.yaml config/meu_sistema.yaml
 ```
 
 ### 2. Editar Configuração
@@ -88,14 +89,18 @@ python run_tests.py -c config/meu_sistema.yaml
 ### Apenas Testes de Segurança
 
 ```bash
-python run_tests.py -c config/meu_sistema.yaml --security-only
+python run_tests.py -c config/meu_sistema.yaml --suite security --authorized
 ```
 
 ### Apenas Testes de Performance
 
 ```bash
-python run_tests.py -c config/meu_sistema.yaml --performance-only
+python run_tests.py -c config/meu_sistema.yaml --suite performance --authorized
 ```
+
+`--suite` pode ser repetido para combinar suítes; sem `--suite`, o framework executa todas as
+suítes habilitadas (`enabled: true`) no config. Suítes ativas (`browser`, `performance`,
+`security`, `external_tools`, `access_control`) exigem `--authorized`.
 
 ### Teste Rápido (Configuração Mínima)
 

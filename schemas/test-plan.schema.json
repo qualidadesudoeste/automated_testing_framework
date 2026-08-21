@@ -6,7 +6,7 @@
   "properties": {
     "target": {"type": "string", "format": "uri"},
     "classification": {"enum": ["local", "private", "external", "unresolved"]},
-    "suites": {"type": "array", "items": {"enum": ["api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security"]}},
+    "suites": {"type": "array", "items": {"enum": ["api", "openapi", "business_rules", "web_quality", "browser", "project_quality", "external_tools", "performance", "security", "access_control"]}},
     "active_authorized": {"type": "boolean"},
     "dry_run": {"type": "boolean"}
   },

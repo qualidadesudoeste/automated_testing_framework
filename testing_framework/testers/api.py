@@ -6,7 +6,7 @@ from typing import Any
 import concurrent.futures
 import requests
 
-from ..http import create_session, target_url
+from ..http import assert_same_origin_response, create_session, target_url
 from ..models import Finding, SuiteResult
 from ..assertions import OPERATORS
 
@@ -62,6 +62,21 @@ class ApiTester:
                 location=url,
                 observed=str(exc),
                 recommendation="Validar disponibilidade, DNS, certificado e timeout do endpoint.",
+            ))
+            return
+
+        try:
+            assert_same_origin_response(self.target["base_url"], response)
+        except ValueError as exc:
+            result.findings.append(Finding(
+                category="framework",
+                title=f"Redirecionamento cross-origin não autorizado em {method} {path}",
+                description="A resposta saiu da origem autorizada durante um redirecionamento.",
+                severity="high",
+                confidence="high",
+                location=url,
+                observed=str(exc),
+                recommendation="Investigar o redirecionamento e, se legítimo, ajustar o alvo autorizado explicitamente.",
             ))
             return
 
@@ -164,6 +179,10 @@ class ApiTester:
         if concurrency:
             self._assert_concurrency(method, url, spec, concurrency, result)
 
+        resource_limits = spec.get("assert_resource_limits")
+        if resource_limits:
+            self._assert_resource_limits(method, url, spec, resource_limits, result)
+
     def _assert_json(self, body: Any, assertion: dict[str, Any], url: str, result: SuiteResult) -> None:
         path = str(assertion.get("path", ""))
         operation = str(assertion.get("operator", "eq"))
@@ -252,6 +271,39 @@ class ApiTester:
         if invalid:
             result.findings.append(Finding("reliability", "Resultado inconsistente sob concorrência", "Chamadas simultâneas retornaram status inesperados.", "high", "high", location=url, expected=str(sorted(expected)), observed=str(statuses)))
         result.metrics.setdefault("concurrency", []).append({"url": url, "workers": workers, "requests": requests_count, "statuses": statuses})
+
+    def _assert_resource_limits(self, method: str, url: str, endpoint: dict[str, Any], spec: dict[str, Any], result: SuiteResult) -> None:
+        """API4:2023 Unrestricted Resource Consumption: um page-size artificialmente
+        grande não deveria devolver mais itens do que o limite máximo esperado."""
+        if method != "GET":
+            result.findings.append(Finding("framework", "Limite de recursos exige GET", "A verificação automática de page-size aceita apenas GET.", "medium", "high", location=url))
+            return
+        page_param = str(spec.get("page_size_param", "limit"))
+        oversized_value = spec.get("oversized_value", 100000)
+        max_allowed = int(spec.get("max_allowed_items", 200))
+        params = dict(endpoint.get("params") or {})
+        params[page_param] = oversized_value
+        try:
+            response = self.session.get(url, params=params, timeout=self.timeout)
+            body = response.json()
+            items = _resolve(body, str(spec.get("items_path", "")))[1]
+            count = len(items) if isinstance(items, list) else 0
+        except (requests.RequestException, ValueError, TypeError):
+            result.findings.append(Finding("framework", "Não foi possível avaliar o limite de recursos", "A chamada com page-size artificial falhou ou retornou um formato inesperado.", "medium", "medium", location=url))
+            return
+        if count > max_allowed:
+            result.findings.append(Finding(
+                category="resource-consumption",
+                title="Servidor não limita page-size solicitado pelo cliente",
+                description="Um valor de page-size artificialmente grande retornou mais itens do que o limite configurado, indicando ausência de teto no servidor.",
+                severity=str(spec.get("severity", "medium")),
+                confidence="high",
+                location=url,
+                expected=f"<= {max_allowed} itens",
+                observed=f"{count} itens",
+                reference="API4:2023",
+                recommendation="Impor um limite máximo de itens por página no servidor, independente do valor solicitado pelo cliente.",
+            ))
 
 
 def _resolve(value: Any, path: str, missing: bool = False) -> tuple[bool, Any]:

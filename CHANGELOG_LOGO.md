@@ -1,5 +1,10 @@
 # Changelog - Adição da Logo
 
+> **Nota (v2.1.0):** `utils/report_generator.py` e `utils/report_generator_with_logo.py`, descritos
+> abaixo, foram removidos por serem código morto — não importados por nenhum módulo e não
+> empacotados no wheel. O gerador de relatórios ativo é `testing_framework/reporting.py`. Este
+> arquivo permanece como registro histórico.
+
 ## Versão 1.1 - 15 de Dezembro de 2025
 
 ### ✨ Nova Funcionalidade: Logo da Empresa nos Relatórios

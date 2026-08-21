@@ -11,7 +11,6 @@ import concurrent.futures
 from typing import List, Dict, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-import json
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -457,17 +456,7 @@ class PerformanceTester:
         return results
 
 
-if __name__ == '__main__':
-    # Exemplo de uso standalone
-    import yaml
-    
-    with open('../config/config.yaml', 'r') as f:
-        config = yaml.safe_load(f)
-    
-    tester = PerformanceTester(config)
-    results = tester.run_all_tests()
-    
-    print("\n" + "="*60)
-    print("RESUMO DOS TESTES DE PERFORMANCE")
-    print("="*60)
-    print(json.dumps(results, indent=2))
+# Não execute este módulo diretamente — use
+# `software-test --suite performance --authorized -c <config>`, que aplica
+# `testing_framework.safety.validate_execution()` (gate --authorized e limites de
+# safety.max_users/max_duration_seconds) antes de qualquer carga ativa.

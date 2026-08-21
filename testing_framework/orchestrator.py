@@ -8,6 +8,8 @@ from performance.performance_tester import PerformanceTester
 from security.security_tester import SecurityTester
 
 from .models import Finding, FrameworkReport, SuiteResult
+from .safety import TargetClassification, revalidate_or_raise
+from .testers.access_control import AccessControlTester
 from .testers.api import ApiTester
 from .testers.browser import BrowserTester
 from .testers.business_rules import BusinessRuleTester
@@ -18,8 +20,9 @@ from .testers.web_quality import WebQualityTester
 
 
 class Orchestrator:
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any], classification: TargetClassification | None = None):
         self.config = config
+        self.classification = classification
 
     def run(self, suites: list[str]) -> FrameworkReport:
         report = FrameworkReport(
@@ -36,9 +39,12 @@ class Orchestrator:
             "external_tools": lambda: ExternalToolsTester(self.config).run(),
             "performance": self._run_performance,
             "security": self._run_security,
+            "access_control": lambda: AccessControlTester(self.config).run(),
         }
         for name in suites:
             try:
+                if self.classification is not None:
+                    revalidate_or_raise(self.config, self.classification, name)
                 suite = runners[name]()
             except Exception as exc:
                 suite = SuiteResult(name, status="error")

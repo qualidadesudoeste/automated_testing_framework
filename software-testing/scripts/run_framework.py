@@ -14,7 +14,11 @@ def main() -> int:
     repository_root = skill_root.parent
     repository_runner = repository_root / "run_tests.py"
     if repository_runner.is_file():
-        return subprocess.call([sys.executable, str(repository_runner), *sys.argv[1:]], cwd=repository_root)
+        # Não fixar cwd no repositório do framework: isso forçaria toda execução de
+        # volta para este repo mesmo quando o chamador pretende testar outro projeto.
+        # O cwd do processo chamador é preservado; caminhos relativos em --config/--output
+        # continuam resolvendo a partir de onde o usuário invocou a skill.
+        return subprocess.call([sys.executable, str(repository_runner), *sys.argv[1:]])
 
     wheels = sorted((skill_root / "assets").glob("automated_software_testing_framework-*.whl"))
     if not wheels:

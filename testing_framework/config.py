@@ -11,7 +11,7 @@ import yaml
 
 
 DEFAULTS: dict[str, Any] = {
-    "general": {"timeout": 15, "retry_attempts": 0, "max_workers": 10},
+    "general": {"timeout": 15, "suite_timeout": 300, "retry_attempts": 0, "max_workers": 10},
     "safety": {
         "allow_external_targets": False,
         "require_authorization_for_active_tests": True,
@@ -67,7 +67,13 @@ def validate_config(config: dict[str, Any]) -> None:
     if not isinstance(timeout, (int, float)) or timeout <= 0:
         raise ValueError("general.timeout deve ser positivo")
 
+    suite_timeout = config["general"].get("suite_timeout", 300)
+    if not isinstance(suite_timeout, (int, float)) or isinstance(suite_timeout, bool) or suite_timeout <= 0:
+        raise ValueError("general.suite_timeout deve ser positivo")
+
     formats = config["reporting"].get("formats", [])
+    if not isinstance(formats, list) or not formats or not all(isinstance(item, str) for item in formats):
+        raise ValueError("reporting.formats deve ser uma lista não vazia")
     unsupported = set(formats) - {"html", "json", "junit", "sarif", "text"}
     if unsupported:
         raise ValueError(f"Formatos de relatório inválidos: {sorted(unsupported)}")

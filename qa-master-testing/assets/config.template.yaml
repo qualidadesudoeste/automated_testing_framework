@@ -108,5 +108,6 @@ reporting:
 
 general:
   timeout: 15
+  suite_timeout: 300       # limite total por suíte; uma trava não impede o relatório consolidado
   retry_attempts: 0
   max_workers: 10

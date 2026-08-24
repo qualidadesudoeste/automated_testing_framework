@@ -21,6 +21,7 @@ security:
             config = load_config(path)
         self.assertEqual(selected_suites(config), ["api"])
         self.assertEqual(config["general"]["timeout"], 15)
+        self.assertEqual(config["general"]["suite_timeout"], 300)
 
     def test_rejects_non_http_target(self):
         content = "target:\n  base_url: file:///tmp/data\n"
@@ -66,6 +67,18 @@ project_quality:
             path.write_text(content, encoding="utf-8")
             with self.assertRaises(ValueError):
                 load_config(path)
+
+    def test_rejects_invalid_suite_timeout_and_empty_report_formats(self):
+        invalid_configs = (
+            "target:\n  base_url: http://127.0.0.1:8000\ngeneral:\n  suite_timeout: false\n",
+            "target:\n  base_url: http://127.0.0.1:8000\nreporting:\n  formats: []\n",
+        )
+        for content in invalid_configs:
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "config.yaml"
+                path.write_text(content, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    load_config(path)
 
     def test_access_control_is_a_known_suite(self):
         content = "target:\n  base_url: http://127.0.0.1:8000\naccess_control:\n  enabled: true\n"

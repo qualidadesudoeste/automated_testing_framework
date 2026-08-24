@@ -89,7 +89,7 @@ class SuiteResult:
         self.finished_at = utc_now()
         if self.skipped_reason:
             self.status = "skipped"
-        elif any(f.severity in {"critical", "high"} for f in self.findings):
+        elif self.status != "error" and any(f.severity in {"critical", "high"} for f in self.findings):
             self.status = "failed"
         return self
 
@@ -126,6 +126,10 @@ class FrameworkReport:
             "summary": {
                 "suites": len(self.suites),
                 "findings": len(self.findings),
+                "by_status": {
+                    status: sum(1 for suite in self.suites if suite.status == status)
+                    for status in ("passed", "failed", "error", "skipped")
+                },
                 "by_severity": {
                     severity: sum(1 for item in self.findings if item.severity == severity)
                     for severity in SEVERITY_ORDER

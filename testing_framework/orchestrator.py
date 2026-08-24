@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from queue import Empty, Queue
+from threading import Thread
 from typing import Any, Callable
 
 from performance.performance_tester import PerformanceTester
@@ -42,26 +44,63 @@ class Orchestrator:
             "access_control": lambda: AccessControlTester(self.config).run(),
         }
         for name in suites:
-            try:
-                if self.classification is not None:
-                    revalidate_or_raise(self.config, self.classification, name)
-                suite = runners[name]()
-            except Exception as exc:
-                suite = SuiteResult(name, status="error")
-                suite.findings.append(Finding(
-                    category="framework",
-                    title=f"Falha interna na suíte {name}",
-                    description="A suíte terminou com uma exceção não tratada.",
-                    severity="high",
-                    confidence="high",
-                    observed=f"{type(exc).__name__}: {exc}",
-                    recommendation="Revisar configuração, dependências e logs da suíte.",
-                ))
-                suite.finish()
+            suite = self._run_with_timeout(name, runners[name])
             report.suites.append(suite)
         self._deduplicate(report)
         report.quality_gate = self._quality_gate(report)
         return report.finish()
+
+    def _run_with_timeout(self, name: str, runner: Callable[[], SuiteResult]) -> SuiteResult:
+        """Isola uma suíte para que um deadlock futuro não bloqueie o relatório inteiro.
+
+        A thread é daemon porque Python não oferece cancelamento seguro de threads. Os testadores
+        atuais também aplicam timeout nas operações de I/O; este limite é a última barreira.
+        """
+        outcome: Queue[SuiteResult | BaseException] = Queue(maxsize=1)
+
+        def execute() -> None:
+            try:
+                if self.classification is not None:
+                    revalidate_or_raise(self.config, self.classification, name)
+                outcome.put(runner())
+            except BaseException as exc:  # inclui saídas inesperadas de extensões futuras
+                outcome.put(exc)
+
+        worker = Thread(target=execute, name=f"suite-{name}", daemon=True)
+        worker.start()
+        suite_timeout = float(self.config.get("general", {}).get("suite_timeout", 300))
+        worker.join(suite_timeout)
+        if worker.is_alive():
+            return self._framework_error(
+                name,
+                f"A suíte excedeu o limite de {suite_timeout:g} segundos.",
+                "Revisar loops, esperas e dependências; ajustar general.suite_timeout apenas se a duração for esperada.",
+            )
+        try:
+            result = outcome.get_nowait()
+        except Empty:
+            return self._framework_error(name, "A suíte terminou sem devolver resultado.")
+        if isinstance(result, BaseException):
+            return self._framework_error(
+                name,
+                f"{type(result).__name__}: {result}",
+                "Revisar configuração, dependências e logs da suíte.",
+            )
+        return result
+
+    @staticmethod
+    def _framework_error(name: str, observed: str, recommendation: str = "Revisar a implementação da suíte.") -> SuiteResult:
+        suite = SuiteResult(name, status="error")
+        suite.findings.append(Finding(
+            category="framework",
+            title=f"Falha interna na suíte {name}",
+            description="A suíte não concluiu normalmente; as demais continuaram sendo executadas.",
+            severity="high",
+            confidence="high",
+            observed=observed,
+            recommendation=recommendation,
+        ))
+        return suite.finish()
 
     def _run_performance(self) -> SuiteResult:
         raw = PerformanceTester(self.config).run_all_tests()
@@ -142,8 +181,10 @@ class Orchestrator:
 
     @staticmethod
     def _deduplicate(report: FrameworkReport) -> None:
-        seen: set[tuple[str, str, str]] = set()
         for suite in report.suites:
+            # Não deduplicar entre suítes: o mesmo sintoma em tipos de teste diferentes
+            # é informação de cobertura e deve continuar atribuído a ambos.
+            seen: set[tuple[str, str, str]] = set()
             unique = []
             for item in suite.findings:
                 key = (item.category, item.title, item.location)

@@ -188,6 +188,7 @@ reporting:
 
 general:
   timeout: 10
+  suite_timeout: 300
   retry_attempts: 0
   max_workers: 10
   log_level: "INFO"

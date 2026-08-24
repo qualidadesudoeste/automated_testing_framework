@@ -17,7 +17,7 @@ Framework Python e pacotes portáteis de automação para planejar, executar e r
 | `security` | Headers, TLS, CORS, injeções (query string e corpo JSON), autenticação, rate limiting e portas, conforme configuração |
 | `access_control` | BOLA/IDOR, BFLA e mass assignment (OWASP API Security Top 10: API1, API3, API5) via identidades declarativas |
 
-Todos os resultados são convertidos para um modelo comum, deduplicados e avaliados por quality gate. Os relatórios podem ser gerados em HTML, JSON, texto, JUnit XML e SARIF.
+Todos os resultados são convertidos para um modelo comum e avaliados juntos pelo mesmo quality gate. Cada execução produz um relatório lógico único, com resumo e seções de todas as suítes; HTML, JSON, texto, JUnit XML e SARIF são apenas representações desse mesmo resultado consolidado e compartilham o mesmo identificador no nome do arquivo.
 
 ## Instalação
 
@@ -69,6 +69,8 @@ Executar suítes passivas contra a aplicação local configurada:
 ```bash
 python run_tests.py --suite api --suite business_rules --suite web_quality
 ```
+
+Repita `--suite` na mesma chamada para manter tudo no mesmo relatório. Sem `--suite`, todas as suítes habilitadas no YAML entram na mesma execução consolidada. Não execute um comando separado por tipo se o objetivo for um único resultado.
 
 Executar testes ativos autorizados:
 
@@ -276,6 +278,8 @@ python run_tests.py --suite api --suite business_rules --suite web_quality
 ```
 
 Os artefatos em `reports/` e caches Python são ignorados pelo controle de versão.
+
+Para evitar que uma implementação futura bloqueie toda a execução, `general.suite_timeout` limita a duração total de cada suíte (300 segundos por padrão). Uma suíte que excede o limite é registrada como `error`, as seguintes continuam e o relatório consolidado é gravado. A escrita dos artefatos é atômica e nomes com precisão de microssegundos evitam relatórios truncados ou sobrescritos por execuções simultâneas.
 
 ## Limitações conhecidas
 
